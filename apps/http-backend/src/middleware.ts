@@ -1,11 +1,7 @@
 import { NextFunction, Request, Response } from "express";
-import { JWT_SECRET, verifyToken } from "@repo/backend-common/config";
+import { verifyToken } from "@repo/backend-common/config";
 
-export function middleware(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+export function middleware(req: Request, res: Response, next: NextFunction) {
   console.log("middleware");
   const token = req.headers.authorization;
   const decoded = verifyToken(token!);
@@ -13,7 +9,7 @@ export function middleware(
 
   if (decoded) {
     let userId = decoded;
-    req.push( userId );
+    req.push(userId);
     next();
   } else {
     res.status(401).send("Unauthorized");

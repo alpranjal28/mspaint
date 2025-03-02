@@ -82,6 +82,9 @@ importers:
       '@repo/common':
         specifier: workspace:*
         version: link:../../packages/common
+      '@repo/db-config':
+        specifier: workspace:*
+        version: link:../../packages/db-config
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../../packages/typescript-config

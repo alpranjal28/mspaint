@@ -12,13 +12,13 @@ wss.on("connection", (ws, request) => {
   }
 
   // const queryParams = url.split("?")[1];
-  const token = new URLSearchParams(url.split("?")[1]).get("token");
-  const decoded = verifyToken(token!);
+  // const token = new URLSearchParams(url.split("?")[1]).get("token");
+  // const decoded = verifyToken(token!);
 
-  if (!decoded) {
-    ws.close();
-    return;
-  }
+  // if (!decoded) {
+  //   ws.close();
+  //   return;
+  // }
 
   ws.on("message", (message) => {
     console.log(message);

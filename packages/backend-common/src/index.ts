@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 
 export const JWT_SECRET = process.env.JWT_SECRET || "secretcode";
 
-export function signToken(userId: number) {
+export function signToken(userId: string) {
   return jwt.sign({ userId }, JWT_SECRET, {
     expiresIn: "1d",
   });

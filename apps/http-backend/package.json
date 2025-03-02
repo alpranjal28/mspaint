@@ -16,7 +16,8 @@
     "@types/express": "^5.0.0",
     "@repo/backend-common": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@repo/common": "workspace:*"
+    "@repo/common": "workspace:*",
+    "@repo/db-config": "workspace:*"
   },
   "keywords": [],
   "author": "",
