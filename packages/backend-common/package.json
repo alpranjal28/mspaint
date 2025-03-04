@@ -15,10 +15,12 @@
   "license": "ISC",
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "@types/bcrypt": "^5.0.2",
     "@types/node": "^22.12.0"
   },
   "dependencies": {
     "@types/jsonwebtoken": "^9.0.9",
+    "bcrypt": "^5.1.1",
     "jsonwebtoken": "^9.0.2"
   }
 }

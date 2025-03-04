@@ -13,14 +13,13 @@
     "express": "^4.21.2"
   },
   "devDependencies": {
-    "@types/express": "^5.0.0",
     "@repo/backend-common": "workspace:*",
-    "@repo/typescript-config": "workspace:*",
     "@repo/common": "workspace:*",
-    "@repo/db-config": "workspace:*"
+    "@repo/db-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/express": "^5.0.0"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+  "license": "ISC"
 }
