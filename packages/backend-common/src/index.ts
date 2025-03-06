@@ -16,6 +16,14 @@ export function verifyToken(token: string) {
   return jwt.verify(token, JWT_SECRET);
 }
 
+export function verifiedUser(token: string): string | null {
+  const decoded = verifyToken(token);
+  if (typeof decoded === "string") return null;
+  if (!decoded) return null;
+  console.log("decoded user token", decoded);
+  return decoded.userId;
+}
+
 // hash
 export function hashPassword(password: string) {
   const salt = bcrypt.genSaltSync(10);
