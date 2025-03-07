@@ -5,11 +5,20 @@ import { verifyToken, verifiedUser } from "@repo/backend-common/config";
 
 const wss = new WebSocket.Server({ port: 8080 });
 
-const users: Map<string, WebSocket> = new Map();
+// const rooms: Map<string, Set<WebSocket>> = new Map();
+// const users: Map<string, WebSocket> = new Map();
 
-const broadcast = (message: string) => {
-  users.forEach((ws) => ws.send(message));
-};
+// const broadcast = (message: string) => {
+//   users.forEach((ws) => ws.send(message));
+// };
+
+interface User {
+  ws: WebSocket;
+  room: string[];
+  userId: string;
+}
+
+const users: User[] = [];
 
 const checkUser = (token: string): string | null => {
   const decoded = verifyToken(token);
@@ -37,8 +46,34 @@ wss.on("connection", (ws, request) => {
     return;
   }
 
+  users.push({ ws, room: [], userId });
+
   ws.on("message", (message) => {
-    console.log(message);
+    const parsedData = JSON.parse(message as unknown as string);
+    if (parsedData.type === "subscribe") {
+      const roomId = parsedData.roomId;
+      const user = users.find((u) => u.userId === userId);
+      if (user) {
+        user.room.push(roomId);
+      }
+    }
+    if (parsedData.type === "unsubscribe") {
+      const roomId = parsedData.roomId;
+      const user = users.find((u) => u.userId === userId);
+      if (user) {
+        user.room = user.room.filter((r) => r !== roomId);
+      }
+    }
+    if (parsedData.type === "chat") {
+      const roomId = parsedData.roomId;
+      const message = parsedData.message;
+
+      users.forEach((u) => {
+        if (u.room.includes(roomId)) {
+          u.ws.send(JSON.stringify({ type: "message", message, roomId }));
+        }
+      });
+    }
   });
 });
 

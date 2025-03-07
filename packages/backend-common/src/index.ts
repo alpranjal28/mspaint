@@ -17,11 +17,17 @@ export function verifyToken(token: string) {
 }
 
 export function verifiedUser(token: string): string | null {
-  const decoded = verifyToken(token);
-  if (typeof decoded === "string") return null;
-  if (!decoded) return null;
-  console.log("decoded user token", decoded);
-  return decoded.userId;
+  console.log("verifing user token", token);
+  try {
+    const decoded = verifyToken(token);
+    if (typeof decoded === "string") return null;
+    if (!decoded) return null;
+    console.log("decoded user token", decoded);
+    return decoded.userId;
+  } catch (e) {
+    console.log("error verifing user token", e);
+    return null;
+  }
 }
 
 // hash
