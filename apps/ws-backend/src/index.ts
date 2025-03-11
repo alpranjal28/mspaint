@@ -2,6 +2,7 @@ console.log("hello from ws backend");
 
 import WebSocket from "ws";
 import { verifyToken, verifiedUser } from "@repo/backend-common/config";
+import { prismaClient } from "@repo/db-config/prisma";
 
 const wss = new WebSocket.Server({ port: 8080 });
 
@@ -48,7 +49,7 @@ wss.on("connection", (ws, request) => {
 
   users.push({ ws, room: [], userId });
 
-  ws.on("message", (message) => {
+  ws.on("message", async (message) => {
     const parsedData = JSON.parse(message as unknown as string);
     if (parsedData.type === "subscribe") {
       const roomId = parsedData.roomId;
@@ -64,9 +65,18 @@ wss.on("connection", (ws, request) => {
         user.room = user.room.filter((r) => r !== roomId);
       }
     }
+    // TODO: use queue to send messages to database
     if (parsedData.type === "chat") {
       const roomId = parsedData.roomId;
       const message = parsedData.message;
+
+      await prismaClient.chat.create({
+        data: {
+          roomId,
+          userId,
+          message,
+        },
+      });
 
       users.forEach((u) => {
         if (u.room.includes(roomId)) {
