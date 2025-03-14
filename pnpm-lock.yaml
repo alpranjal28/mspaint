@@ -301,28 +301,6 @@ importers:
         specifier: 5.7.3
         version: 5.7.3
 
-  packages/ui-next:
-    dependencies:
-      next:
-        specifier: ^15.1.6
-        version: 15.1.6(react-dom@19.0.0)(react@19.0.0)
-      react:
-        specifier: ^19
-        version: 19.0.0
-      react-dom:
-        specifier: ^19
-        version: 19.0.0(react@19.0.0)
-    devDependencies:
-      '@repo/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
-      '@types/react':
-        specifier: ^19.0.7
-        version: 19.0.8
-
 packages:
 
   /@alloc/quick-lru@5.2.0:
