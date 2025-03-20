@@ -1,3 +1,6 @@
+import axios from "axios";
+import { HTTP_BACKEND_URL } from "../config";
+
 type Shapes =
   | {
       type: "rect";
@@ -13,9 +16,9 @@ type Shapes =
       radius: number;
     };
 
-let existingShapes: Shapes[] = [];
+let existingShapes: Shapes[] = await getExistingShapes(123);
 
-export function Draw(canvas: HTMLCanvasElement) {
+export function Draw(canvas: HTMLCanvasElement, roomId: string) {
   // const canvas = canvasRef.current;
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
@@ -76,4 +79,11 @@ function renderCanvas(
       ctx.arc(shape.x, shape.y, shape.radius, shape.x + 10, shape.y + 10);
     }
   });
+}
+
+async function getExistingShapes(roomId: number) {
+  const res = await axios.get(`${HTTP_BACKEND_URL}/room/${roomId}`);
+  const data = JSON.parse(res.data.messages);
+
+  return data;
 }
