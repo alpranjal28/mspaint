@@ -1,12 +1,12 @@
-import Canvas from "../../../components/Canvas";
+import LoadingCanvas from "../../../components/LoadingCanvas";
 
 export default async function CanvasPage({
   params,
 }: {
-  params: { roomId: string };
+  params: { roomId: number };
 }) {
   const roomId = (await params).roomId;
   console.log("roomId -> ", roomId);
 
-  return <Canvas params={{ roomId }} />;
+  return <LoadingCanvas roomId={roomId} />;
 }

@@ -46,4 +46,16 @@ model Chat {
   user      User     @relation(fields: [userId], references: [id])
 }
 
-// ToDo: shapes schema, add relations, make strict
+// ToDo: shapes schema with relations, add relations, make strict
+// rectangle
+
+model Rectangle {
+  id        Int      @id @default(autoincrement())
+  type      String
+  x         Float
+  y         Float
+  width     Float
+  height    Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

@@ -2,15 +2,21 @@
 import { useEffect, useRef, useState } from "react";
 import { Draw } from "../draw";
 
-export default function Canvas({ params }: { params: { roomId: string } }) {
-  const roomId = params.roomId;
-
+export default function Canvas({
+  roomId,
+  socket,
+}: {
+  roomId: number;
+  socket: WebSocket;
+}) {
+  // const roomId = params.roomId;
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
   const [windowDimensions, setWindowDimensions] = useState({
     width: 0,
     height: 0,
   });
+
+  console.log("roomId -> ", roomId);
 
   useEffect(() => {
     const handleResize = () => {
@@ -27,8 +33,9 @@ export default function Canvas({ params }: { params: { roomId: string } }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    Draw(canvas, roomId);
+    Draw(canvas, roomId, socket);
   });
+
   return (
     <main className="flex min-h-screen bg-gray-300">
       <canvas
