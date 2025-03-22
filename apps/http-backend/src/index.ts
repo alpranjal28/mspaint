@@ -11,15 +11,19 @@ import {
   CreateRoomSchems,
 } from "@repo/common/zod-types";
 import { prismaClient } from "@repo/db-config/prisma";
+import cors from "cors"
 
 const app = express();
-
 const port = process.env.PORT || 3030;
 
+// middleware
+app.use(express.json());
+app.use(cors())
+
+// routes
 app.get("/", (req, res) => {
   res.send("Hello from http-backend!");
 });
-app.use(express.json());
 
 app.post("/signup", async (req, res) => {
   const parsedData = CreateUserSchema.safeParse(req.body);
@@ -126,7 +130,9 @@ app.post("/room", middleware, async (req, res) => {
 });
 
 app.get("/room/:roomId", middleware, async (req, res) => {
-  const room = Number(req.params.slug);
+  const room = Number(req.params.roomId);
+  console.log("get messages from roomId -> ", room);
+  
 
   // get messages from room
   const messages = await prismaClient.chat.findMany({

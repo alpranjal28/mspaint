@@ -1,5 +1,6 @@
 import axios from "axios";
 import { HTTP_BACKEND_URL } from "../config";
+import { get } from "node:http";
 
 type Shapes =
   | {
@@ -82,14 +83,14 @@ export function Draw(
     existingShapes.push(shape);
     socket.send(
       JSON.stringify({
-        type: "message",
+        type: "chat",
         roomId: 7,
+        message: JSON.stringify(shape),
         // message: JSON.stringify(shape),
-        message: "sent from frontend",
       })
     );
     console.log("sent to backend -> ", shape);
-    
+    console.log("sent to backend -> ", JSON.stringify(shape));
   });
   canvas.addEventListener("mousemove", (e) => {
     if (clicked) {
@@ -106,8 +107,14 @@ export function Draw(
 }
 
 async function getExistingShapes(roomId: number) {
-  const res = await axios.get(`${HTTP_BACKEND_URL}/room/${roomId}`);
-  const data = JSON.parse(res.data.messages);
+  const res = (await axios.get(`${HTTP_BACKEND_URL}/room/${roomId}`,{
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxNzRjMWQxZi01NmIwLTRiMGQtODUzYy1iMmM2ZmE1M2M2Y2UiLCJpYXQiOjE3NDI1NTYwNTcsImV4cCI6MTc0MjY0MjQ1N30.WrEfj0UjfjMGuZ3X2Bj0vqO5DNGQEO4lDFk1AdwQuEk"
+    },
+  }));
+
+  const data = res.data.messages;
   console.log(data);
 
   const shapes = data.map((shape: any) => {
@@ -132,3 +139,4 @@ async function getExistingShapes(roomId: number) {
 
   return data;
 }
+getExistingShapes(7);
