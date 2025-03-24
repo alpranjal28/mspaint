@@ -110,7 +110,7 @@ async function getExistingShapes(roomId: number) {
   const res = (await axios.get(`${HTTP_BACKEND_URL}/room/${roomId}`,{
     headers: {
       "Content-Type": "application/json",
-      "Authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxNzRjMWQxZi01NmIwLTRiMGQtODUzYy1iMmM2ZmE1M2M2Y2UiLCJpYXQiOjE3NDI1NTYwNTcsImV4cCI6MTc0MjY0MjQ1N30.WrEfj0UjfjMGuZ3X2Bj0vqO5DNGQEO4lDFk1AdwQuEk"
+      "Authorization": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxNzRjMWQxZi01NmIwLTRiMGQtODUzYy1iMmM2ZmE1M2M2Y2UiLCJpYXQiOjE3NDI4MTAwMzMsImV4cCI6MTc0Mjg5NjQzM30.yphIHBoS0o5NMiQdeWnuBD-m5Vqt1PfvfbWkLeUd2O4"
     },
   }));
 

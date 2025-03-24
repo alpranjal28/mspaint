@@ -13,13 +13,13 @@ const wss = new WebSocket.Server({ port: 8080 });
 //   users.forEach((ws) => ws.send(message));
 // };
 
-interface User {
+interface RoomUser {
   ws: WebSocket;
   room: string[];
   userId: string;
 }
 
-const users: User[] = [];
+const roomUsers: RoomUser[] = [];
 
 const checkUser = (token: string): string | null => {
   const decoded = verifyToken(token);
@@ -33,8 +33,6 @@ wss.on("connection", (ws, request) => {
   if (!url) {
     return;
   }
-
-  // const queryParams = url.split("?")[1];
   const token = new URLSearchParams(url.split("?")[1]).get("token");
   if (!token) {
     ws.close();
@@ -47,20 +45,20 @@ wss.on("connection", (ws, request) => {
     return;
   }
 
-  users.push({ ws, room: [], userId });
+  roomUsers.push({ ws, room: [], userId });
 
   ws.on("message", async (message) => {
     const parsedData = JSON.parse(message as unknown as string);
     if (parsedData.type === "subscribe") {
       const roomId = parsedData.roomId;
-      const user = users.find((u) => u.userId === userId);
+      const user = roomUsers.find((u) => u.userId === userId);
       if (user) {
         user.room.push(roomId);
       }
     }
     if (parsedData.type === "unsubscribe") {
       const roomId = parsedData.roomId;
-      const user = users.find((u) => u.userId === userId);
+      const user = roomUsers.find((u) => u.userId === userId);
       if (user) {
         user.room = user.room.filter((r) => r !== roomId);
       }
@@ -72,15 +70,15 @@ wss.on("connection", (ws, request) => {
 
       await prismaClient.chat.create({
         data: {
-          roomId,
-          userId,
-          message,
+          roomId: roomId,
+          userId: userId, // takes user id from token
+          message: message,
         },
       });
 
-      users.forEach((u) => {
+      roomUsers.forEach((u) => {
         if (u.room.includes(roomId)) {
-          u.ws.send(JSON.stringify({ type: "message", message, roomId }));
+          u.ws.send(JSON.stringify({ type: "broadcasted", message, roomId, userId }));
         }
       });
     }
