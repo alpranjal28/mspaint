@@ -15,7 +15,7 @@ const wss = new WebSocket.Server({ port: 8080 });
 
 interface RoomUser {
   ws: WebSocket;
-  room: string[];
+  room: number[];
   userId: string;
 }
 
@@ -65,7 +65,7 @@ wss.on("connection", (ws, request) => {
     }
     // TODO: use queue to send messages to database
     if (parsedData.type === "chat") {
-      const roomId = parsedData.roomId;
+      const roomId = Number(parsedData.roomId);
       const message = parsedData.message;
 
       await prismaClient.chat.create({
@@ -76,9 +76,18 @@ wss.on("connection", (ws, request) => {
         },
       });
 
+      console.log("room users", roomUsers);
+
       roomUsers.forEach((u) => {
+        console.log("broadcasting to room", roomId);
+        u.ws.send(
+          JSON.stringify({ type: "broadcasted", message, roomId, userId })
+        );
+
         if (u.room.includes(roomId)) {
-          u.ws.send(JSON.stringify({ type: "broadcasted", message, roomId, userId }));
+          console.log("broadcasted to room", roomId);
+        } else {
+          console.log("not broadcasting to room", roomId);
         }
       });
     }

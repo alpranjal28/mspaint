@@ -8,14 +8,19 @@ export default function LoadingCanvas({ roomId }: { roomId: number }) {
   useEffect(() => {
     const ws = new WebSocket(
       // `${WS_BACKEND_URL}?token=${localStorage.getItem("token")}`
-      `${WS_BACKEND_URL}?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxNzRjMWQxZi01NmIwLTRiMGQtODUzYy1iMmM2ZmE1M2M2Y2UiLCJpYXQiOjE3NDI1NTYwNTcsImV4cCI6MTc0MjY0MjQ1N30.WrEfj0UjfjMGuZ3X2Bj0vqO5DNGQEO4lDFk1AdwQuEk`
+      `${WS_BACKEND_URL}?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxNzRjMWQxZi01NmIwLTRiMGQtODUzYy1iMmM2ZmE1M2M2Y2UiLCJpYXQiOjE3NDI4MTc3MjksImV4cCI6MTc0MjkwNDEyOX0.pY7UOs0xxxB3bpInNvbOlB7qFkYT3NfhqVSqiD6j14A`
     );
     ws.onopen = () => {
-      console.log(`connecting to canvas of room ${roomId}`);
+      console.log(`connecting to ws canvas of room ${roomId}`);
 
       setSocket(ws);
       ws.send(JSON.stringify({ type: "subscribe", roomId }));
       console.log("ws connected to canvas");
+    };
+
+    ws.onclose = () => {
+      console.log("disconnected from ws canvas of room ", roomId);
+      setSocket(null);
     };
   }, []);
 
