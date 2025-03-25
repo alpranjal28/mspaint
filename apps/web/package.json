@@ -12,17 +12,20 @@
   },
   "dependencies": {
     "@repo/ui": "workspace:*",
+    "@repo/backend-common": "workspace:*",
     "axios": "^1.8.4",
     "lucide-react": "^0.479.0",
     "next": "^15.1.6",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.54.2"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^15.1.6",
     "@repo/eslint-config": "workspace:*",
     "@repo/tailwind-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "@types/jsonwebtoken":"^9.0.9",
     "@types/node": "^22.12.0",
     "@types/react": "^19.0.7",
     "@types/react-dom": "^19.0.3",

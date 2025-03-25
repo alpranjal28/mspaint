@@ -9,6 +9,7 @@ import {
   Users,
 } from "lucide-react";
 import ButtonUI from "@repo/ui/button";
+import SessionData from "../components/sessionData";
 
 export default function LandingPage() {
   return (
@@ -39,6 +40,12 @@ export default function LandingPage() {
             >
               Pricing
             </Link>
+            {/* <Link
+              href="#profile"
+              className="text-sm font-medium text-gray-600 hover:text-gray-900"
+            >
+              welcome, {JSON.stringify(SessionData)}
+            </Link> */}
           </nav>
           <div className="flex">
             <ButtonUI href="/signin" type="button" theme="text">
