@@ -1,6 +1,4 @@
-import axios from "axios";
-import { HTTP_BACKEND_URL } from "../config";
-import { get } from "node:http";
+import getExistingShapes from "../components/GetExistingShapes";
 
 type Shapes =
   | {
@@ -98,41 +96,3 @@ export async function Draw(
     }
   });
 }
-
-async function getExistingShapes(roomId: number) {
-  const res = await axios.get(`${HTTP_BACKEND_URL}/room/${roomId}`, {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization:
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIxNzRjMWQxZi01NmIwLTRiMGQtODUzYy1iMmM2ZmE1M2M2Y2UiLCJpYXQiOjE3NDI4MTAwMzMsImV4cCI6MTc0Mjg5NjQzM30.yphIHBoS0o5NMiQdeWnuBD-m5Vqt1PfvfbWkLeUd2O4",
-    },
-  });
-
-  const data = res.data.messages.map((message: any) =>
-    JSON.parse(message.message)
-  );
-  console.log(data);
-
-  const shapes = data.map((shape: any) => {
-    if (shape.type === "rect") {
-      return {
-        type: "rect",
-        x: shape.x,
-        y: shape.y,
-        width: shape.width,
-        height: shape.height,
-      };
-    }
-    if (shape.type === "circle") {
-      return {
-        type: "circle",
-        x: shape.x,
-        y: shape.y,
-        radius: shape.radius,
-      };
-    }
-  });
-
-  return shapes;
-}
-getExistingShapes(7);

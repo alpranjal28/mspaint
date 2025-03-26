@@ -40,12 +40,12 @@ export default function LandingPage() {
             >
               Pricing
             </Link>
-            {/* <Link
+            <Link
               href="#profile"
               className="text-sm font-medium text-gray-600 hover:text-gray-900"
             >
-              welcome, {JSON.stringify(SessionData)}
-            </Link> */}
+              welcome, <SessionData />
+            </Link>
           </nav>
           <div className="flex">
             <ButtonUI href="/signin" type="button" theme="text">
