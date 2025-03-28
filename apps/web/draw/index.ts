@@ -15,6 +15,12 @@ type Shapes =
       radius: number;
     };
 
+enum Tools {
+  Rect,
+  Circle,
+  Pencil,
+}
+
 function renderCanvas(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
@@ -35,7 +41,8 @@ function renderCanvas(
 export async function Draw(
   canvas: HTMLCanvasElement,
   roomId: number,
-  socket: WebSocket
+  socket: WebSocket,
+  drawShape: Tools
 ) {
   let existingShapes: Shapes[] = await getExistingShapes(roomId);
   if (!canvas) return;
@@ -43,6 +50,8 @@ export async function Draw(
   if (!ctx) return;
 
   renderCanvas(ctx, canvas, existingShapes);
+
+  // render new shapes broadcasted
   socket.onmessage = (event) => {
     const data = JSON.parse(event.data);
     if (data.type === "broadcasted") {
@@ -55,44 +64,59 @@ export async function Draw(
   };
   renderCanvas(ctx, canvas, existingShapes);
 
-  // rect
+  // initialse
   let clicked = false;
   let startX = 0;
   let startY = 0;
-  canvas.addEventListener("mousedown", (e) => {
-    clicked = true;
-    startX = e.clientX;
-    startY = e.clientY;
-  });
-  canvas.addEventListener("mouseup", (e) => {
-    clicked = false;
-    const width = e.clientX - startX;
-    const height = e.clientY - startY;
 
-    const shape: Shapes = {
-      type: "rect",
-      x: startX,
-      y: startY,
-      width,
-      height,
-    };
-    // send to backend
-    existingShapes.push(shape);
-    socket.send(
-      JSON.stringify({
-        type: "chat",
-        roomId: 7,
-        message: JSON.stringify(shape),
-      })
-    );
-  });
-  canvas.addEventListener("mousemove", (e) => {
-    if (clicked) {
+  // draw rect
+  if (drawShape === Tools.Rect) {
+    canvas.addEventListener("mousedown", (e) => {
+      clicked = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+    canvas.addEventListener("mouseup", (e) => {
+      clicked = false;
       const width = e.clientX - startX;
       const height = e.clientY - startY;
-      renderCanvas(ctx, canvas, existingShapes);
-      ctx.strokeStyle = "red";
-      ctx.strokeRect(startX, startY, width, height);
-    }
-  });
+
+      const shape: Shapes = {
+        type: "rect",
+        x: startX,
+        y: startY,
+        width,
+        height,
+      };
+      // send to backend
+      existingShapes.push(shape);
+      socket.send(
+        JSON.stringify({
+          type: "chat",
+          roomId: 7,
+          message: JSON.stringify(shape),
+        })
+      );
+    });
+    canvas.addEventListener("mousemove", (e) => {
+      if (clicked) {
+        const width = e.clientX - startX;
+        const height = e.clientY - startY;
+        renderCanvas(ctx, canvas, existingShapes);
+        ctx.strokeStyle = "red";
+        ctx.strokeRect(startX, startY, width, height);
+        // draw circle
+      }
+    });
+  }
+
+  // draw circle
+  if (drawShape === Tools.Circle) {
+    canvas.addEventListener("mousedown", (e) => {
+      clicked = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+    canvas.addEventListener("mouseup", () => {});
+  }
 }

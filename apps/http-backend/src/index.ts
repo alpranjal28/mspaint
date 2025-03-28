@@ -1,9 +1,10 @@
 import express from "express";
 import { middleware } from "./middleware";
 import {
-  signToken,
+  accessToken,
   hashPassword,
   checkPassword,
+  refreshToken,
 } from "@repo/backend-common/config";
 import {
   CreateUserSchema,
@@ -11,14 +12,14 @@ import {
   CreateRoomSchems,
 } from "@repo/common/zod-types";
 import { prismaClient } from "@repo/db-config/prisma";
-import cors from "cors"
+import cors from "cors";
 
 const app = express();
 const port = process.env.PORT || 3030;
 
 // middleware
 app.use(express.json());
-app.use(cors())
+app.use(cors());
 
 // routes
 app.get("/", (req, res) => {
@@ -92,9 +93,15 @@ app.post("/signin", async (req, res) => {
     return;
   }
 
-  const userId = user.id;
-  const token = signToken(userId);
+  const token = accessToken(user.id, user.email);
+  const refToken = refreshToken(user.id, user.name);
   const username = user.name;
+
+  res.cookie("refreshToken", refToken, {
+    httpOnly: true,
+    secure: true,
+    maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
+  });
 
   res.json({ username, token });
   // res.json(token);
@@ -132,7 +139,6 @@ app.post("/room", middleware, async (req, res) => {
 app.get("/room/:roomId", middleware, async (req, res) => {
   const room = Number(req.params.roomId);
   console.log("get messages from roomId -> ", room);
-  
 
   // get messages from room
   const messages = await prismaClient.chat.findMany({
@@ -145,9 +151,8 @@ app.get("/room/:roomId", middleware, async (req, res) => {
     take: 50,
   });
 
-  res.json({messages});
+  res.json({ messages });
 });
-
 
 app.get("/chats/:slug", middleware, async (req, res) => {
   const slug = req.params.slug;

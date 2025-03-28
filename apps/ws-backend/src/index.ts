@@ -76,7 +76,7 @@ wss.on("connection", (ws, request) => {
         },
       });
 
-      console.log("room users", roomUsers);
+      // console.log("room users", roomUsers);
 
       roomUsers.forEach((u) => {
         console.log("broadcasting to room", roomId);
