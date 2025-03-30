@@ -1,3 +1,4 @@
+"use client"
 import getExistingShapes from "../components/GetExistingShapes";
 
 type Shapes =
@@ -12,6 +13,8 @@ type Shapes =
       type: "circle";
       x: number;
       y: number;
+      width: number;
+      height: number;
       radius: number;
     };
 
@@ -68,55 +71,112 @@ export async function Draw(
   let clicked = false;
   let startX = 0;
   let startY = 0;
+  let shape: Shapes | null = null;
 
-  // draw rect
-  if (drawShape === Tools.Rect) {
-    canvas.addEventListener("mousedown", (e) => {
-      clicked = true;
-      startX = e.clientX;
-      startY = e.clientY;
-    });
-    canvas.addEventListener("mouseup", (e) => {
-      clicked = false;
-      const width = e.clientX - startX;
-      const height = e.clientY - startY;
+  canvas.addEventListener("mousedown", (e) => {
+    clicked = true;
+    startX = e.clientX;
+    startY = e.clientY;
+  });
+  canvas.addEventListener("mouseup", (e) => {
+    clicked = false;
+    const width = e.clientX - startX;
+    const height = e.clientY - startY;
 
-      const shape: Shapes = {
+    if (drawShape === Tools.Rect) {
+      // rect
+      shape = {
         type: "rect",
         x: startX,
         y: startY,
         width,
         height,
       };
-      // send to backend
-      existingShapes.push(shape);
-      socket.send(
-        JSON.stringify({
-          type: "chat",
-          roomId: 7,
-          message: JSON.stringify(shape),
-        })
-      );
-    });
-    canvas.addEventListener("mousemove", (e) => {
-      if (clicked) {
-        const width = e.clientX - startX;
-        const height = e.clientY - startY;
-        renderCanvas(ctx, canvas, existingShapes);
-        ctx.strokeStyle = "red";
-        ctx.strokeRect(startX, startY, width, height);
-        // draw circle
-      }
-    });
-  }
+    } else if (drawShape === Tools.Circle) {
+      // circle
+      shape = {
+        type: "circle",
+        x: startX,
+        y: startY,
+        width,
+        height,
+        radius: Math.sqrt(width * width + height * height),
+      };
+    }
 
-  // draw circle
-  if (drawShape === Tools.Circle) {
-    canvas.addEventListener("mousedown", (e) => {
-      clicked = true;
-      startX = e.clientX;
-      startY = e.clientY;
-    });
-    canvas.addEventListener("mouseup", () => {});
-  }
+    if (!shape) return;
+    // send to backend
+    socket.send(
+      JSON.stringify({
+        type: "chat",
+        roomId: 7,
+        message: JSON.stringify(shape),
+      })
+    );
+    existingShapes.push(shape);
+  });
+
+  canvas.addEventListener("mousemove", (e) => {
+    if (clicked) {
+      const width = e.clientX - startX;
+      const height = e.clientY - startY;
+      renderCanvas(ctx, canvas, existingShapes);
+      ctx.strokeStyle = "red";
+      if (drawShape === Tools.Rect) {
+        ctx.strokeRect(startX, startY, width, height);
+      } else if (drawShape === Tools.Circle) {
+        let centerWidth;
+        let centerHeight;
+        let endX;
+        let endY;
+        let radius;
+        clicked = false;
+
+        endX = e.clientX;
+        endY = e.clientY;
+        centerWidth = (e.clientX - startX) / 2;
+        centerHeight = (e.clientY - startY) / 2;
+        radius = Math.sqrt(
+          centerWidth * centerWidth + centerHeight * centerHeight
+        );
+
+        console.log("start coordinates -> ", startX, startY);
+        console.log("end coordinates -> ", endX, endY);
+        console.log("center coordinates -> ", centerWidth, centerHeight);
+      }
+    }
+  });
+
+  // if (drawShape === Tools.Circle) {
+  //   canvas.addEventListener("mousedown", (e) => {
+  //     clicked = true;
+  //     startX = e.clientX;
+  //     startY = e.clientY;
+  //   });
+  //   let centerWidth;
+  //   let centerHeight;
+  //   let endX;
+  //   let endY;
+  //   let radius;
+  //   canvas.addEventListener("mouseup", (e) => {
+  //     clicked = false;
+
+  //     endX = e.clientX;
+  //     endY = e.clientY;
+  //     centerWidth = (e.clientX - startX) / 2;
+  //     centerHeight = (e.clientY - startY) / 2;
+  //     radius = Math.sqrt(
+  //       centerWidth * centerWidth + centerHeight * centerHeight
+  //     );
+
+  //     console.log("start coordinates -> ", startX, startY);
+  //     console.log("end coordinates -> ", endX, endY);
+  //     console.log("center coordinates -> ", centerWidth, centerHeight);
+  //   });
+  //   canvas.addEventListener("mousemove", (e) => {
+  //     if (clicked) {
+  //       ctx.beginPath();
+  //     }
+  //   });
+  // }
 }

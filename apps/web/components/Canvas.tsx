@@ -41,7 +41,9 @@ export default function Canvas({
     const canvas = canvasRef.current;
     if (!canvas) return;
     Draw(canvas, roomId, socket, selectedTool);
-  });
+    console.log(selectedTool);
+    
+  }, [roomId, socket, selectedTool]);
 
   function Dock() {
     return (
