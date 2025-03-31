@@ -1,7 +1,7 @@
 import axios from "axios";
 import { HTTP_BACKEND_URL } from "../config";
 
-type Shapes =
+export type Shapes =
   | {
       type: "rect";
       x: number;
@@ -11,10 +11,8 @@ type Shapes =
     }
   | {
       type: "circle";
-      x: number;
-      y: number;
-      width: number;
-      height: number;
+      centerX: number;
+      centerY: number;
       radius: number;
     };
 
@@ -45,10 +43,8 @@ export default async function getExistingShapes(roomId: number) {
       if (shape.type === "circle") {
         return {
           type: "circle",
-          x: shape.x,
-          y: shape.y,
-          width: shape.width,
-          height: shape.height,
+          centerX: shape.centerX,
+          centerY: shape.centerY,
           radius: shape.radius,
         };
       }

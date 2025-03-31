@@ -1,11 +1,10 @@
-"use client";
 import { useEffect, useRef, useState } from "react";
-import { Draw } from "../draw";
+import { Game } from "../draw/Game";
 
-enum Tools {
-  Rect,
-  Circle,
-  Pencil,
+export enum Tools {
+  Rect="rect",
+  Circle="circle",
+  Pencil="pencil",
 }
 
 export default function Canvas({
@@ -17,13 +16,12 @@ export default function Canvas({
 }) {
   // const roomId = params.roomId;
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [selectedTool, setSelectedTool] = useState<Tools>(Tools.Rect);
+  const [selectedTool, setSelectedTool] = useState<Tools>(Tools.Circle);
+  const [game,setGame]=  useState<Game>();
   const [windowDimensions, setWindowDimensions] = useState({
     width: 0,
     height: 0,
   });
-
-  console.log("roomId -> ", roomId);
 
   useEffect(() => {
     const handleResize = () => {
@@ -38,12 +36,14 @@ export default function Canvas({
   }, []);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    Draw(canvas, roomId, socket, selectedTool);
-    console.log(selectedTool);
-    
-  }, [roomId, socket, selectedTool]);
+    game?.setSelectedTool(selectedTool);
+  },[selectedTool,game]);
+
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    const g = new Game(canvasRef.current, roomId, socket, selectedTool);
+    setGame(g);
+  }, [canvasRef.current]);
 
   function Dock() {
     return (
@@ -64,6 +64,15 @@ export default function Canvas({
         >
           circle
         </div>
+        <div
+          className="border-2 border-black p-2 bg-red-300 rounded-full cursor-pointer hover:bg-red-500 transition-colors"
+          onClick={() => {
+            setSelectedTool(Tools.Pencil);
+          }}
+        >
+          pencil
+        </div>
+        {JSON.stringify(game?.selectedTool)}
       </div>
     );
   }

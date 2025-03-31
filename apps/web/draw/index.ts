@@ -1,4 +1,5 @@
 "use client"
+import { Tools } from "../components/Canvas";
 import getExistingShapes from "../components/GetExistingShapes";
 
 type Shapes =
@@ -17,12 +18,6 @@ type Shapes =
       height: number;
       radius: number;
     };
-
-enum Tools {
-  Rect,
-  Circle,
-  Pencil,
-}
 
 function renderCanvas(
   ctx: CanvasRenderingContext2D,

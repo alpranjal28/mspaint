@@ -148,7 +148,7 @@ app.get("/room/:roomId", middleware, async (req, res) => {
     orderBy: {
       createdAt: "desc",
     },
-    take: 50,
+    take: 500,
   });
 
   res.json({ messages });
