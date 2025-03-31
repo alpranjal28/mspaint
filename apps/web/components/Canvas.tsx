@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Game } from "../draw/Game";
 
 export enum Tools {
-  Rect="rect",
-  Circle="circle",
-  Pencil="pencil",
+  Rect = "rect",
+  Circle = "circle",
+  Pencil = "pencil",
 }
 
 export default function Canvas({
@@ -17,7 +17,7 @@ export default function Canvas({
   // const roomId = params.roomId;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [selectedTool, setSelectedTool] = useState<Tools>(Tools.Circle);
-  const [game,setGame]=  useState<Game>();
+  const [game, setGame] = useState<Game>();
   const [windowDimensions, setWindowDimensions] = useState({
     width: 0,
     height: 0,
@@ -37,17 +37,28 @@ export default function Canvas({
 
   useEffect(() => {
     game?.setSelectedTool(selectedTool);
-  },[selectedTool,game]);
+  }, [selectedTool, game]);
 
   useEffect(() => {
-    if (!canvasRef.current) return;
-    const g = new Game(canvasRef.current, roomId, socket, selectedTool);
-    setGame(g);
+    if (canvasRef.current) {
+      const g = new Game(canvasRef.current, roomId, socket, selectedTool);
+      setGame(g);
+
+      return () => g.destroyMouseHandlers();
+    }
   }, [canvasRef.current]);
 
   function Dock() {
     return (
       <div className="absolute flex justify-center gap-4 p-4 bg-slate-600 transition-all duration-500">
+        <div
+          className="border-2 border-black p-2 bg-red-300 rounded-full cursor-pointer hover:bg-red-500 transition-colors"
+          onClick={() => {
+            setSelectedTool(Tools.Pencil);
+          }}
+        >
+          pencil
+        </div>
         <div
           className="border-2 border-black p-2 bg-red-300 cursor-pointer hover:bg-red-500 transition-colors"
           onClick={() => {
@@ -64,14 +75,7 @@ export default function Canvas({
         >
           circle
         </div>
-        <div
-          className="border-2 border-black p-2 bg-red-300 rounded-full cursor-pointer hover:bg-red-500 transition-colors"
-          onClick={() => {
-            setSelectedTool(Tools.Pencil);
-          }}
-        >
-          pencil
-        </div>
+
         {JSON.stringify(game?.selectedTool)}
       </div>
     );

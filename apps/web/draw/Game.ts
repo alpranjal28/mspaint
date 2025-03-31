@@ -72,97 +72,112 @@ export class Game {
       }
       if (shape.type === "circle") {
         this.ctx.beginPath();
-        this.ctx.arc(shape.centerX, shape.centerY, shape.radius, 0, 2 * Math.PI);
+        this.ctx.arc(
+          shape.centerX,
+          shape.centerY,
+          shape.radius,
+          0,
+          2 * Math.PI
+        );
         this.ctx.stroke();
         this.ctx.closePath();
       }
     });
   }
 
-  initMouseHandlers() {
-    const selectedTool = this.selectedTool;
-    this.canvas.addEventListener("mousedown", (e) => {
-      this.clicked = true;
-      this.startX = e.clientX;
-      this.startY = e.clientY;
-    });
+  mouseUpHandler = (e: MouseEvent) => {
+    this.clicked = true;
+    this.startX = e.clientX;
+    this.startY = e.clientY;
+  };
 
-    this.canvas.addEventListener("mouseup", (e) => {
-      this.clicked = false;
+  mouseDownHandler = (e: MouseEvent) => {
+    this.clicked = false;
+    this.width = e.clientX - this.startX;
+    this.height = e.clientY - this.startY;
+
+    let shape: Shapes | null = null;
+    if (this.selectedTool === "rect") {
+      // rect
+      shape = {
+        type: "rect",
+        x: this.startX,
+        y: this.startY,
+        width: this.width,
+        height: this.height,
+      };
+    }
+    if (this.selectedTool === "circle") {
+      // circle
+      shape = {
+        type: "circle",
+        centerX: this.centerX,
+        centerY: this.centerY,
+        radius: this.radius,
+      };
+      // console.log(shape);
+    }
+
+    if (!shape) return;
+
+    console.log(shape);
+
+    // send to backend
+    this.socket.send(
+      JSON.stringify({
+        type: "chat",
+        roomId: 7,
+        message: JSON.stringify(shape),
+      })
+    );
+    this.existingShapes.push(shape);
+  };
+
+  mouseMoveHandler = (e: MouseEvent) => {
+    if (this.clicked) {
       this.width = e.clientX - this.startX;
       this.height = e.clientY - this.startY;
-
-      let shape: Shapes | null = null;
-      if (selectedTool === "rect") {
-        // rect
-        shape = {
-          type: "rect",
-          x: this.startX,
-          y: this.startY,
-          width: this.width,
-          height: this.height,
-        };
+      this.renderCanvas();
+      this.ctx.strokeStyle = "red";
+      if (this.selectedTool === "rect") {
+        this.ctx.strokeRect(this.startX, this.startY, this.width, this.height);
       }
-      if (selectedTool === "circle") {
-        // circle
-        shape = {
-          type: "circle",
-          centerX: this.centerX,
-          centerY: this.centerY,
-          radius: this.radius,
-        };
-        // console.log(shape);
+      if (this.selectedTool === "circle") {
+        let centerWidth;
+        let centerHeight;
+        let endX;
+        let endY;
+
+        endX = e.clientX;
+        endY = e.clientY;
+        this.centerX = (e.clientX + this.startX) / 2;
+        this.centerY = (e.clientY + this.startY) / 2;
+        this.radius =
+          Math.sqrt(
+            Math.pow(endX - this.startX, 2) + Math.pow(endY - this.startY, 2)
+          ) / 2;
+
+        // console.log("start coordinates -> ", this.startX, this.startY);
+        // console.log("end coordinates -> ", endX, endY);
+        // console.log("center coordinates -> ", centerWidth, centerHeight);
+
+        this.ctx.beginPath();
+        this.ctx.arc(this.centerX, this.centerY, this.radius, 0, 2 * Math.PI);
+        this.ctx.stroke();
+        this.ctx.closePath();
       }
+    }
+  };
 
-      if (!shape) return;
+  initMouseHandlers = () => {
+    this.canvas.addEventListener("mouseup", this.mouseDownHandler);
+    this.canvas.addEventListener("mousedown", this.mouseUpHandler);
+    this.canvas.addEventListener("mousemove", this.mouseMoveHandler);
+  };
 
-      console.log(shape);
-
-      // send to backend
-      this.socket.send(
-        JSON.stringify({
-          type: "chat",
-          roomId: 7,
-          message: JSON.stringify(shape),
-        })
-      );
-      this.existingShapes.push(shape);
-    });
-
-    this.canvas.addEventListener("mousemove", (e) => {
-      if (this.clicked) {
-        this.width = e.clientX - this.startX;
-        this.height = e.clientY - this.startY;
-        this.renderCanvas();
-        this.ctx.strokeStyle = "red";
-        // if (selectedTool === "rect") {
-        //   this.ctx.strokeRect(this.startX, this.startY, width, height);
-        // }
-        if (selectedTool === "circle") {
-          let centerWidth;
-          let centerHeight;
-          let endX;
-          let endY;
-          
-          endX = e.clientX;
-          endY = e.clientY;
-          this.centerX = (e.clientX + this.startX) / 2;
-          this.centerY = (e.clientY + this.startY) / 2;
-          this.radius =
-            Math.sqrt(
-              Math.pow(endX - this.startX, 2) + Math.pow(endY - this.startY, 2)
-            ) / 2;
-
-          // console.log("start coordinates -> ", this.startX, this.startY);
-          // console.log("end coordinates -> ", endX, endY);
-          // console.log("center coordinates -> ", centerWidth, centerHeight);
-
-          this.ctx.beginPath();
-          this.ctx.arc(this.centerX, this.centerY, this.radius, 0, 2 * Math.PI);
-          this.ctx.stroke();
-          this.ctx.closePath();
-        }
-      }
-    });
-  }
+  destroyMouseHandlers = () => {
+    this.canvas.removeEventListener("mousedown", this.mouseDownHandler);
+    this.canvas.removeEventListener("mouseup", this.mouseUpHandler);
+    this.canvas.removeEventListener("mousemove", this.mouseMoveHandler);
+  };
 }
