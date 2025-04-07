@@ -85,6 +85,18 @@ export class Game {
     });
   }
 
+  dbHandler(shape: Shapes) {
+    this.socket.send(
+      JSON.stringify({
+        type: "chat",
+        roomId: 7,
+        message: JSON.stringify(shape),
+      })
+    );
+    this.existingShapes.push(shape);
+    console.log("sent to db", shape);
+  }
+
   mouseUpHandler = (e: MouseEvent) => {
     this.clicked = true;
     this.startX = e.clientX;
@@ -106,6 +118,10 @@ export class Game {
         width: this.width,
         height: this.height,
       };
+      if (shape.width === 0 || shape.height === 0) {
+        return;
+      }
+      this.dbHandler(shape);
     }
     if (this.selectedTool === "circle") {
       // circle
@@ -115,22 +131,13 @@ export class Game {
         centerY: this.centerY,
         radius: this.radius,
       };
-      // console.log(shape);
+      if (shape.radius === 0) {
+        return;
+      }
+      this.dbHandler(shape);
+    } else {
+      return;
     }
-
-    if (!shape) return;
-
-    console.log(shape);
-
-    // send to backend
-    this.socket.send(
-      JSON.stringify({
-        type: "chat",
-        roomId: 7,
-        message: JSON.stringify(shape),
-      })
-    );
-    this.existingShapes.push(shape);
   };
 
   mouseMoveHandler = (e: MouseEvent) => {
