@@ -12,6 +12,8 @@ export class Game {
   private clicked = false;
   private startX = 0;
   private startY = 0;
+  private lastX = 0;
+  private lastY = 0;
   // rect
   private height = 0;
   private width = 0;
@@ -78,6 +80,14 @@ export class Game {
 
     this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
   }
+  lineStroke(shape: Shapes) {
+    if (shape.type !== "line") return;
+
+    this.ctx.beginPath();
+    this.ctx.moveTo(shape.x, shape.y);
+    this.ctx.lineTo(shape.x2, shape.y2);
+    this.ctx.stroke();
+  }
 
   renderCanvas() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -85,10 +95,11 @@ export class Game {
     this.existingShapes.map((shape) => {
       this.circleStroke(shape);
       this.rectStroke(shape);
+      this.lineStroke(shape);
     });
   }
 
-  dbHandler(shape: Shapes) {
+  broadcastHandler(shape: Shapes) {
     this.socket.send(
       JSON.stringify({
         type: "chat",
@@ -124,7 +135,7 @@ export class Game {
       if (shape.width === 0 || shape.height === 0) {
         return;
       }
-      this.dbHandler(shape);
+      this.broadcastHandler(shape);
     }
     if (this.selectedTool === "circle") {
       // circle
@@ -137,7 +148,21 @@ export class Game {
       if (shape.radius === 0) {
         return;
       }
-      this.dbHandler(shape);
+      this.broadcastHandler(shape);
+    }
+    if (this.selectedTool === "line") {
+      // line
+      shape = {
+        type: "line",
+        x: this.startX,
+        y: this.startY,
+        x2: e.clientX,
+        y2: e.clientY,
+      };
+      if (shape.x === shape.x2 && shape.y === shape.y2) {
+        return;
+      }
+      this.broadcastHandler(shape);
     } else {
       return;
     }
@@ -145,6 +170,7 @@ export class Game {
 
   mouseMoveHandler = (e: MouseEvent) => {
     // rendering logic for shapes
+    // playground
     if (this.clicked) {
       this.width = e.clientX - this.startX;
       this.height = e.clientY - this.startY;
@@ -167,6 +193,15 @@ export class Game {
           ) / 2;
         this.ctx.beginPath();
         this.ctx.arc(this.centerX, this.centerY, this.radius, 0, 2 * Math.PI);
+        this.ctx.stroke();
+        this.ctx.closePath();
+      }
+      if (this.selectedTool === Tools.Line) {
+        this.lastX = e.clientX;
+        this.lastY = e.clientY;
+        this.ctx.beginPath();
+        this.ctx.moveTo(this.startX, this.startY);
+        this.ctx.lineTo(this.lastX, this.lastY);
         this.ctx.stroke();
         this.ctx.closePath();
       }

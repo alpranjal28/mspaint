@@ -5,6 +5,7 @@ export enum Tools {
   Rect = "rect",
   Circle = "circle",
   Pencil = "pencil",
+  Line = "line",
 }
 
 export default function Canvas({
@@ -54,10 +55,10 @@ export default function Canvas({
         <div
           className="border-2 border-black p-2 bg-red-300 rounded-full cursor-pointer hover:bg-red-500 transition-colors"
           onClick={() => {
-            setSelectedTool(Tools.Pencil);
+            setSelectedTool(Tools.Line);
           }}
         >
-          pencil
+          line
         </div>
         <div
           className="border-2 border-black p-2 bg-red-300 cursor-pointer hover:bg-red-500 transition-colors"

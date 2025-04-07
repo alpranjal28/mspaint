@@ -1,20 +1,29 @@
 import axios from "axios";
 import { HTTP_BACKEND_URL } from "../config";
 
-export type Shapes =
-  | {
-      type: "rect";
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    }
-  | {
-      type: "circle";
-      centerX: number;
-      centerY: number;
-      radius: number;
-    };
+interface RectProps {
+  type: "rect";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+interface CircleProps {
+  type: "circle";
+  centerX: number;
+  centerY: number;
+  radius: number;
+}
+
+interface LineProps {
+  type: "line";
+  x: number;
+  y: number;
+  x2: number;
+  y2: number;
+}
+export type Shapes = RectProps | CircleProps | LineProps;
 
 export default async function getExistingShapes(roomId: number) {
   try {
@@ -46,6 +55,14 @@ export default async function getExistingShapes(roomId: number) {
           centerX: shape.centerX,
           centerY: shape.centerY,
           radius: shape.radius,
+        };
+      }if (shape.type === "line") {
+        return {
+          type: "line",
+          x: shape.x,
+          y: shape.y,
+          x2: shape.x2,
+          y2: shape.y2,
         };
       }
     });
