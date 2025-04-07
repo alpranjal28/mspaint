@@ -56,7 +56,8 @@ export default async function getExistingShapes(roomId: number) {
           centerY: shape.centerY,
           radius: shape.radius,
         };
-      }if (shape.type === "line") {
+      }
+      if (shape.type === "line") {
         return {
           type: "line",
           x: shape.x,
@@ -64,6 +65,8 @@ export default async function getExistingShapes(roomId: number) {
           x2: shape.x2,
           y2: shape.y2,
         };
+      } else {
+        return {};
       }
     });
     return shapes;

@@ -67,6 +67,19 @@ export class Game {
     };
   }
 
+  resetInitialValues() {
+    this.clicked = false;
+    this.startX = 0;
+    this.startY = 0;
+    this.lastX = 0;
+    this.lastY = 0;
+    this.height = 0;
+    this.width = 0;
+    this.centerX = 0;
+    this.centerY = 0;
+    this.radius = 0;
+  }
+
   circleStroke(shape: Shapes) {
     if (shape.type !== "circle") return;
 
@@ -87,6 +100,7 @@ export class Game {
     this.ctx.moveTo(shape.x, shape.y);
     this.ctx.lineTo(shape.x2, shape.y2);
     this.ctx.stroke();
+    this.ctx.closePath();
   }
 
   renderCanvas() {
@@ -103,12 +117,13 @@ export class Game {
     this.socket.send(
       JSON.stringify({
         type: "chat",
-        roomId: 7,
+        roomId: this.roomId,
         message: JSON.stringify(shape),
       })
     );
     this.existingShapes.push(shape);
     console.log("sent to db", shape);
+    this.resetInitialValues();
   }
 
   mouseDownHandler = (e: MouseEvent) => {
@@ -145,10 +160,11 @@ export class Game {
         centerY: this.centerY,
         radius: this.radius,
       };
-      if (shape.radius === 0) {
+      if (this.radius === 0) {
         return;
       }
       this.broadcastHandler(shape);
+
     }
     if (this.selectedTool === "line") {
       // line
@@ -156,8 +172,8 @@ export class Game {
         type: "line",
         x: this.startX,
         y: this.startY,
-        x2: e.clientX,
-        y2: e.clientY,
+        x2: this.lastX,
+        y2: this.lastY,
       };
       if (shape.x === shape.x2 && shape.y === shape.y2) {
         return;
