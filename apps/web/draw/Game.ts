@@ -7,7 +7,7 @@ export class Game {
   private ctx: CanvasRenderingContext2D;
   private existingShapes: Shapes[];
   private roomId: number;
-  selectedTool: Tools;
+  selectedTool: Tools = Tools.Circle;
   // initials
   private clicked = false;
   private startX = 0;
@@ -46,11 +46,13 @@ export class Game {
   }
 
   async init() {
+    // get existing shapes from db
     this.existingShapes = await getExistingShapes(this.roomId);
     this.renderCanvas();
   }
 
   initHandlers() {
+    // pull from websocket
     this.socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "broadcasted") {
@@ -63,25 +65,26 @@ export class Game {
     };
   }
 
+  circleStroke(shape: Shapes) {
+    if (shape.type !== "circle") return;
+
+    this.ctx.beginPath();
+    this.ctx.arc(shape.centerX, shape.centerY, shape.radius, 0, 2 * Math.PI);
+    this.ctx.stroke();
+    this.ctx.closePath();
+  }
+  rectStroke(shape: Shapes) {
+    if (shape.type !== "rect") return;
+
+    this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+  }
+
   renderCanvas() {
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.strokeStyle = "red";
     this.existingShapes.map((shape) => {
-      if (shape.type === "rect") {
-        this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
-      }
-      if (shape.type === "circle") {
-        this.ctx.beginPath();
-        this.ctx.arc(
-          shape.centerX,
-          shape.centerY,
-          shape.radius,
-          0,
-          2 * Math.PI
-        );
-        this.ctx.stroke();
-        this.ctx.closePath();
-      }
+      this.circleStroke(shape);
+      this.rectStroke(shape);
     });
   }
 
@@ -97,13 +100,13 @@ export class Game {
     console.log("sent to db", shape);
   }
 
-  mouseUpHandler = (e: MouseEvent) => {
+  mouseDownHandler = (e: MouseEvent) => {
     this.clicked = true;
     this.startX = e.clientX;
     this.startY = e.clientY;
   };
 
-  mouseDownHandler = (e: MouseEvent) => {
+  mouseUpHandler = (e: MouseEvent) => {
     this.clicked = false;
     this.width = e.clientX - this.startX;
     this.height = e.clientY - this.startY;
@@ -141,17 +144,16 @@ export class Game {
   };
 
   mouseMoveHandler = (e: MouseEvent) => {
+    // rendering logic for shapes
     if (this.clicked) {
       this.width = e.clientX - this.startX;
       this.height = e.clientY - this.startY;
       this.renderCanvas();
       this.ctx.strokeStyle = "red";
-      if (this.selectedTool === "rect") {
+      if (this.selectedTool === Tools.Rect) {
         this.ctx.strokeRect(this.startX, this.startY, this.width, this.height);
       }
-      if (this.selectedTool === "circle") {
-        let centerWidth;
-        let centerHeight;
+      if (this.selectedTool === Tools.Circle) {
         let endX;
         let endY;
 
@@ -163,11 +165,6 @@ export class Game {
           Math.sqrt(
             Math.pow(endX - this.startX, 2) + Math.pow(endY - this.startY, 2)
           ) / 2;
-
-        // console.log("start coordinates -> ", this.startX, this.startY);
-        // console.log("end coordinates -> ", endX, endY);
-        // console.log("center coordinates -> ", centerWidth, centerHeight);
-
         this.ctx.beginPath();
         this.ctx.arc(this.centerX, this.centerY, this.radius, 0, 2 * Math.PI);
         this.ctx.stroke();
@@ -177,8 +174,8 @@ export class Game {
   };
 
   initMouseHandlers = () => {
-    this.canvas.addEventListener("mouseup", this.mouseDownHandler);
-    this.canvas.addEventListener("mousedown", this.mouseUpHandler);
+    this.canvas.addEventListener("mousedown", this.mouseDownHandler);
+    this.canvas.addEventListener("mouseup", this.mouseUpHandler);
     this.canvas.addEventListener("mousemove", this.mouseMoveHandler);
   };
 

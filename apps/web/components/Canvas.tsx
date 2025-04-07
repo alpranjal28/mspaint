@@ -76,7 +76,7 @@ export default function Canvas({
           circle
         </div>
 
-        {JSON.stringify(game?.selectedTool)}
+        {JSON.stringify(selectedTool)}
       </div>
     );
   }
