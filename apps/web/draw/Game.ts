@@ -40,11 +40,14 @@ export class Game {
     this.init();
     this.initHandlers();
     this.initMouseHandlers();
+    this.ctx.save();
   }
 
   setSelectedTool(tool: Tools) {
     console.log("selected tool -> ", tool);
     this.selectedTool = tool;
+    this.resetInitialValues();
+    this.ctx.restore();
   }
 
   async init() {
@@ -175,7 +178,7 @@ export class Game {
         x2: this.lastX,
         y2: this.lastY,
       };
-      if (shape.x === shape.x2 && shape.y === shape.y2) {
+      if (shape.x === shape.x2 && shape.y === shape.y2 || shape.x2 === 0 || shape.y2 === 0) {
         return;
       }
       this.broadcastHandler(shape);
