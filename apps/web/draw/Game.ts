@@ -14,6 +14,8 @@ export class Game {
   private startY = 0;
   private lastX = 0;
   private lastY = 0;
+  private panOffsetX = 50;
+  private panOffsetY = 50;
   // rect
   private height = 0;
   private width = 0;
@@ -41,6 +43,19 @@ export class Game {
     this.initHandlers();
     this.initMouseHandlers();
     this.ctx.save();
+  }
+
+  getMousePos(e: MouseEvent) {
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+
+    // return {
+    //   x: e.clientX - rect.left + this.panOffsetX,
+    //   y: e.clientY - rect.top + this.panOffsetY,
+    // };
   }
 
   setSelectedTool(tool: Tools) {
@@ -117,7 +132,7 @@ export class Game {
     this.ctx.save();
 
     // Apply translation here
-    this.ctx.translate(200, 200); // Example translation
+    this.ctx.translate(this.panOffsetX, this.panOffsetY); // Example translation
 
     // Draw all shapes with the translation applied
     this.ctx.strokeStyle = "red";
@@ -126,7 +141,6 @@ export class Game {
       this.rectStroke(shape);
       this.lineStroke(shape);
     });
-    this.ctx.fillRect(100,100,100,100)
 
     this.ctx.restore(); // This will remove the translation
   }
@@ -147,8 +161,8 @@ export class Game {
   mouseDownHandler = (e: MouseEvent) => {
     e.preventDefault();
     this.clicked = true;
-    this.startX = e.clientX;
-    this.startY = e.clientY;
+    this.startX = this.getMousePos(e).x;
+    this.startY = this.getMousePos(e).y;
   };
 
   mouseUpHandler = (e: MouseEvent) => {
@@ -161,8 +175,8 @@ export class Game {
       // rect
       shape = {
         type: "rect",
-        x: this.startX,
-        y: this.startY,
+        x: this.startX - this.panOffsetX,
+        y: this.startY - this.panOffsetY,
         width: this.width,
         height: this.height,
       };
@@ -175,8 +189,8 @@ export class Game {
       // circle
       shape = {
         type: "circle",
-        centerX: this.centerX,
-        centerY: this.centerY,
+        centerX: this.centerX - this.panOffsetX,
+        centerY: this.centerY - this.panOffsetY,
         radius: this.radius,
       };
       if (this.radius === 0) {
@@ -188,10 +202,10 @@ export class Game {
       // line
       shape = {
         type: "line",
-        x: this.startX,
-        y: this.startY,
-        x2: this.lastX,
-        y2: this.lastY,
+        x: this.startX - this.panOffsetX,
+        y: this.startY - this.panOffsetY,
+        x2: this.lastX - this.panOffsetX,
+        y2: this.lastY - this.panOffsetY,
       };
       if (
         (shape.x === shape.x2 && shape.y === shape.y2) ||
@@ -246,10 +260,27 @@ export class Game {
     }
   };
 
+  wheelHandler = (e: WheelEvent) => {
+    e.preventDefault();
+    const delta = Math.sign(e.deltaY);
+    const panAmount = 50; // adjust this value to control pan speed
+
+    if (e.shiftKey) {
+      // Horizontal pan when shift is pressed
+      this.panOffsetX -= delta * panAmount;
+    } else {
+      // Vertical pan by default
+      this.panOffsetY -= delta * panAmount;
+    }
+
+    this.renderCanvas();
+  };
+
   initMouseHandlers = () => {
     this.canvas.addEventListener("mousedown", this.mouseDownHandler);
     this.canvas.addEventListener("mouseup", this.mouseUpHandler);
     this.canvas.addEventListener("mousemove", this.mouseMoveHandler);
+    this.canvas.addEventListener("wheel", this.wheelHandler);
   };
 
   destroyMouseHandlers = () => {
