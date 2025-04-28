@@ -107,13 +107,28 @@ export class Game {
   }
 
   renderCanvas() {
+    // First clear everything
+    this.ctx.save(); // Save the initial state
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0); // Reset any transformations
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.ctx.restore(); // Restore to the initial state
+
+    // Start fresh with transformations
+    this.ctx.save();
+
+    // Apply translation here
+    this.ctx.translate(200, 200); // Example translation
+
+    // Draw all shapes with the translation applied
     this.ctx.strokeStyle = "red";
     this.existingShapes.map((shape) => {
       this.circleStroke(shape);
       this.rectStroke(shape);
       this.lineStroke(shape);
     });
+    this.ctx.fillRect(100,100,100,100)
+
+    this.ctx.restore(); // This will remove the translation
   }
 
   broadcastHandler(shape: Shapes) {
@@ -130,6 +145,7 @@ export class Game {
   }
 
   mouseDownHandler = (e: MouseEvent) => {
+    e.preventDefault();
     this.clicked = true;
     this.startX = e.clientX;
     this.startY = e.clientY;
@@ -167,7 +183,6 @@ export class Game {
         return;
       }
       this.broadcastHandler(shape);
-
     }
     if (this.selectedTool === "line") {
       // line
@@ -178,7 +193,11 @@ export class Game {
         x2: this.lastX,
         y2: this.lastY,
       };
-      if (shape.x === shape.x2 && shape.y === shape.y2 || shape.x2 === 0 || shape.y2 === 0) {
+      if (
+        (shape.x === shape.x2 && shape.y === shape.y2) ||
+        shape.x2 === 0 ||
+        shape.y2 === 0
+      ) {
         return;
       }
       this.broadcastHandler(shape);
