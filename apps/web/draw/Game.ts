@@ -14,8 +14,8 @@ export class Game {
   private startY = 0;
   private lastX = 0;
   private lastY = 0;
-  private panOffsetX = 50;
-  private panOffsetY = 50;
+  private panOffsetX = 0;
+  private panOffsetY = 0;
   // rect
   private height = 0;
   private width = 0;
@@ -263,10 +263,10 @@ export class Game {
   wheelHandler = (e: WheelEvent) => {
     e.preventDefault();
     const delta = Math.sign(e.deltaY);
-    const panAmount = 50; // adjust this value to control pan speed
+    const panAmount = 50; // adjust this value to control pan speed, 50 default
 
     if (e.shiftKey) {
-      // Horizontal pan when shift is pressed
+      // Horizontal pan
       this.panOffsetX -= delta * panAmount;
     } else {
       // Vertical pan by default
