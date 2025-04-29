@@ -7,6 +7,10 @@ export class Game {
   private ctx: CanvasRenderingContext2D;
   private existingShapes: Shapes[];
   private roomId: number;
+  private resizeObserver: ResizeObserver;
+  private currentCanvasWidth = 0;
+  private currentCanvasHeight = 0;
+  private animationFrameId: number = 0;
   selectedTool: Tools = Tools.Circle;
   // initials
   private clicked = false;
@@ -16,6 +20,9 @@ export class Game {
   private lastY = 0;
   private panOffsetX = 0;
   private panOffsetY = 0;
+  private mouseOverX = 0;
+  private mouseOverY = 0;
+  private scale = 1;
   // rect
   private height = 0;
   private width = 0;
@@ -39,6 +46,10 @@ export class Game {
     this.existingShapes = [];
     this.roomId = roomId;
     this.socket = socket;
+    this.currentCanvasWidth = canvas.width;
+    this.currentCanvasHeight = canvas.height;
+    this.resizeObserver = new ResizeObserver(this.handleResize);
+    this.resizeObserver.observe(canvas);
     this.init();
     this.initHandlers();
     this.initMouseHandlers();
@@ -47,6 +58,11 @@ export class Game {
 
   getMousePos(e: MouseEvent) {
     const rect = this.canvas.getBoundingClientRect();
+
+    this.mouseOverX = e.clientX - rect.left;
+    this.mouseOverY = e.clientY - rect.top;
+    console.log(this.mouseOverX, this.mouseOverY);
+
     return {
       x: e.clientX - rect.left,
       y: e.clientY - rect.top,
@@ -57,6 +73,19 @@ export class Game {
     //   y: e.clientY - rect.top + this.panOffsetY,
     // };
   }
+
+  private handleResize = (entries: ResizeObserverEntry[]) => {
+    const entry = entries[0];
+    if (!entry) return;
+
+    const { width, height } = entry.contentRect;
+    this.canvas.width = width;
+    this.canvas.height = height;
+    this.currentCanvasWidth = width;
+    this.currentCanvasHeight = height;
+
+    this.renderCanvas();
+  };
 
   setSelectedTool(tool: Tools) {
     console.log("selected tool -> ", tool);
@@ -133,6 +162,7 @@ export class Game {
 
     // Apply translation here
     this.ctx.translate(this.panOffsetX, this.panOffsetY); // Example translation
+    this.ctx.scale(this.scale, this.scale);
 
     // Draw all shapes with the translation applied
     this.ctx.strokeStyle = "red";
@@ -287,5 +317,13 @@ export class Game {
     this.canvas.removeEventListener("mousedown", this.mouseDownHandler);
     this.canvas.removeEventListener("mouseup", this.mouseUpHandler);
     this.canvas.removeEventListener("mousemove", this.mouseMoveHandler);
+  };
+
+  cleanup = () => {
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
+    }
+    this.resizeObserver.disconnect();
+    this.destroyMouseHandlers();
   };
 }

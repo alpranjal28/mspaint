@@ -34,7 +34,7 @@ export default function Canvas({
     window.addEventListener("resize", handleResize);
     handleResize();
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [window.innerWidth, window.innerHeight]);
 
   useEffect(() => {
     game?.setSelectedTool(selectedTool);
@@ -45,7 +45,7 @@ export default function Canvas({
       const g = new Game(canvasRef.current, roomId, socket, selectedTool);
       setGame(g);
 
-      return () => g.destroyMouseHandlers();
+      return () => g.cleanup();
     }
   }, [canvasRef.current]);
 
