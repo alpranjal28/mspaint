@@ -6,6 +6,7 @@ export enum Tools {
   Circle = "circle",
   Pencil = "pencil",
   Line = "line",
+  Select = "select",
 }
 
 export default function Canvas({
@@ -37,7 +38,9 @@ export default function Canvas({
   }, [window.innerWidth, window.innerHeight]);
 
   useEffect(() => {
-    game?.setSelectedTool(selectedTool);
+    if (game) {
+      game.selectedTool = selectedTool;
+    }
   }, [selectedTool, game]);
 
   useEffect(() => {
@@ -75,6 +78,14 @@ export default function Canvas({
           }}
         >
           circle
+        </div>
+        <div
+          className="border-2 border-black p-2 bg-red-300 rounded-full cursor-pointer hover:bg-red-500 transition-colors"
+          onClick={() => {
+            setSelectedTool(Tools.Select);
+          }}
+        >
+          Selection
         </div>
 
         {JSON.stringify(selectedTool)}
