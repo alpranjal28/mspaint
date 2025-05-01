@@ -7,6 +7,7 @@ export enum Tools {
   Pencil = "pencil",
   Line = "line",
   Select = "select",
+  Eraser = "eraser",
 }
 
 export default function Canvas({
@@ -86,6 +87,14 @@ export default function Canvas({
           }}
         >
           Selection
+        </div>
+        <div
+          className="border-2 border-black p-2 bg-red-300 rounded-full cursor-pointer hover:bg-red-500 transition-colors"
+          onClick={() => {
+            setSelectedTool(Tools.Eraser);
+          }}
+        >
+          eraser
         </div>
 
         {JSON.stringify(selectedTool)}

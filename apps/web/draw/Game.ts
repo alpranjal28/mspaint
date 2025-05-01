@@ -108,7 +108,12 @@ export class Game {
   private onMouseDown = (e: MouseEvent) => {
     const pos = this.getMousePos(e);
 
-    if (this.selectedTool === Tools.Select) {
+    if (this.selectedTool === Tools.Eraser) {
+      const shapeToErase = this.findShapeAtPosition(pos);
+      if (shapeToErase) {
+        this.eraseShape(shapeToErase);
+      }
+    } else if (this.selectedTool === Tools.Select) {
       const selectedShape = this.findShapeAtPosition(pos);
       this.selection = {
         active: true,
@@ -269,6 +274,23 @@ export class Game {
         shape.y2 = y + dy;
         break;
       }
+    }
+  }
+
+  private eraseShape(shape: Shapes) {
+    const index = this.shapes.indexOf(shape);
+    if (index !== -1) {
+      this.shapes.splice(index, 1);
+
+      this.socket.send(
+        JSON.stringify({
+          type: "chat",
+          roomId: this.roomId,
+          message: JSON.stringify({ type: "erase", shapeIndex: index }),
+        })
+      );
+
+      this.render();
     }
   }
 
