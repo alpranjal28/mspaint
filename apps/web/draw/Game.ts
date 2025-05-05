@@ -79,7 +79,12 @@ export class Game {
   private initSocket() {
     this.socket.onmessage = (e) => {
       const data = JSON.parse(e.data);
+
       if (data.type === "broadcasted") {
+        const message = JSON.parse(data.message);
+        if (message.type === "erase") {
+          this.shapes.filter((shape, index) => index !== message.shapeIndex);
+        }
         this.shapes.push(JSON.parse(data.message));
         this.render();
       }
@@ -183,6 +188,10 @@ export class Game {
       this.drawing.active = false;
       const shape = this.createShape();
       if (shape) {
+        const id = `${Math.random() * 11}`;
+        const payload = { type: "draw", shape: shape, id };
+        console.log(payload);
+
         this.socket.send(
           JSON.stringify({
             type: "chat",
