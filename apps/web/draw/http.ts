@@ -42,39 +42,22 @@ export default async function getExistingShapes(roomId: number) {
     const data = res.data.messages.map((message: any) =>
       JSON.parse(message.message)
     );
-    console.log(data);
+    console.log("raw data from server/db", data);
 
-    const shapes = data.map((shape: Shapes) => {
-      if (shape.type === "rect") {
-        return {
-          type: "rect",
-          x: shape.x,
-          y: shape.y,
-          width: shape.width,
-          height: shape.height,
-        };
-      }
-      if (shape.type === "circle") {
-        return {
-          type: "circle",
-          centerX: shape.centerX,
-          centerY: shape.centerY,
-          radius: shape.radius,
-        };
-      }
-      if (shape.type === "line") {
-        return {
-          type: "line",
-          x: shape.x,
-          y: shape.y,
-          x2: shape.x2,
-          y2: shape.y2,
-        };
-      } else {
-        return {};
-      }
+    const validPayloads = data.filter((item: any) => {
+      return (
+        // validation
+        item &&
+        typeof item === "object" &&
+        item.function &&
+        (item.function === "draw" || item.function === "erase") &&
+        item.id &&
+        (item.function === "erase" || (item.shape && item.shape.type))
+      );
     });
-    return shapes;
+    
+    console.log("valid Payloads from server", validPayloads);
+    return validPayloads as Payload[];
   } catch (error) {
     console.log(error);
   }

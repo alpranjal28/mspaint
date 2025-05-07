@@ -72,7 +72,8 @@ export class Game {
   };
 
   private async init() {
-    this.tempShapes = await getExistingShapes(this.roomId);
+    const shapes = await getExistingShapes(this.roomId);
+    this.tempShapes = shapes || [];
     this.render();
   }
 
@@ -85,8 +86,8 @@ export class Game {
         console.log("initSocket message = ", message);
 
         if (message.function === "erase") {
-          this.tempShapes.filter(
-            (shape, index) => index !== message.shapeIndex
+          this.tempShapes = this.tempShapes.filter(
+            (shape) => shape.id !== message.id
           );
         }
         if (message.function === "draw") {
@@ -305,7 +306,7 @@ export class Game {
         JSON.stringify({
           type: "chat",
           roomId: this.roomId,
-          message: JSON.stringify({ type: "erase", shapeIndex: index }),
+          message: JSON.stringify({ function: "erase", id: tempShape.id }),
         })
       );
 
@@ -404,6 +405,8 @@ export class Game {
     this.ctx.scale(this.current.scale, this.current.scale);
 
     // Draw existing shapes
+    console.log("tempshapes", this.tempShapes);
+
     this.tempShapes.forEach((tempShape) => {
       this.ctx.strokeStyle =
         tempShape.shape === this.selection.selectedShape?.shape
