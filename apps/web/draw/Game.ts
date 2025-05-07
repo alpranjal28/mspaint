@@ -1,11 +1,11 @@
 import { Tools } from "../components/Canvas";
-import getExistingShapes, { Shapes } from "./http";
+import getExistingShapes, { Payload, Shapes } from "./http";
 
 interface SelectionState {
   active: boolean;
   startX: number;
   startY: number;
-  selectedShape?: Shapes;
+  selectedShape?: Payload;
   isDragging: boolean;
   dragOffsetX: number;
   dragOffsetY: number;
@@ -15,7 +15,7 @@ export class Game {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private socket: WebSocket;
-  private shapes: Shapes[] = [];
+  private tempShapes: Payload[] = [];
   private roomId: number;
   selectedTool: Tools;
   private resizeObserver: ResizeObserver;
@@ -72,7 +72,7 @@ export class Game {
   };
 
   private async init() {
-    this.shapes = await getExistingShapes(this.roomId);
+    this.tempShapes = await getExistingShapes(this.roomId);
     this.render();
   }
 
@@ -82,10 +82,17 @@ export class Game {
 
       if (data.type === "broadcasted") {
         const message = JSON.parse(data.message);
-        if (message.type === "erase") {
-          this.shapes.filter((shape, index) => index !== message.shapeIndex);
+        console.log("initSocket message = ", message);
+
+        if (message.function === "erase") {
+          this.tempShapes.filter(
+            (shape, index) => index !== message.shapeIndex
+          );
         }
-        this.shapes.push(JSON.parse(data.message));
+        if (message.function === "draw") {
+          this.tempShapes.push(message);
+        }
+        // this.shapes.push(JSON.parse(data.message));
         this.render();
       }
     };
@@ -120,6 +127,7 @@ export class Game {
       }
     } else if (this.selectedTool === Tools.Select) {
       const selectedShape = this.findShapeAtPosition(pos);
+
       this.selection = {
         active: true,
         startX: pos.x,
@@ -128,15 +136,15 @@ export class Game {
         isDragging: !!selectedShape,
         dragOffsetX: selectedShape
           ? pos.x -
-            (selectedShape.type === "circle"
-              ? selectedShape.centerX
-              : selectedShape.x)
+            (selectedShape.shape.type === "circle"
+              ? selectedShape.shape.centerX
+              : selectedShape.shape.x)
           : 0,
         dragOffsetY: selectedShape
           ? pos.y -
-            (selectedShape.type === "circle"
-              ? selectedShape.centerY
-              : selectedShape.y)
+            (selectedShape.shape.type === "circle"
+              ? selectedShape.shape.centerY
+              : selectedShape.shape.y)
           : 0,
       };
     } else {
@@ -189,18 +197,18 @@ export class Game {
       const shape = this.createShape();
       if (shape) {
         const id = `${Math.random() * 11}`;
-        const payload = { type: "draw", shape: shape, id };
+        const payload: Payload = { function: "draw", shape: shape, id };
         console.log(payload);
 
         this.socket.send(
           JSON.stringify({
             type: "chat",
             roomId: this.roomId,
-            message: JSON.stringify(shape),
+            message: JSON.stringify(payload),
           })
         );
-        this.shapes.push(shape);
-        console.log("sent to db ", shape);
+        this.tempShapes.push(payload);
+        console.log("sent to db ", payload);
       }
     }
   };
@@ -208,9 +216,9 @@ export class Game {
   private findShapeAtPosition(pos: {
     x: number;
     y: number;
-  }): Shapes | undefined {
-    for (let i = this.shapes.length - 1; i >= 0; i--) {
-      const shape = this.shapes[i];
+  }): Payload | undefined {
+    for (let i = this.tempShapes.length - 1; i >= 0; i--) {
+      const shape = this.tempShapes[i];
       if (!shape) return;
       if (this.isPointInShape(pos, shape)) {
         return shape;
@@ -221,8 +229,9 @@ export class Game {
 
   private isPointInShape(
     point: { x: number; y: number },
-    shape: Shapes
+    shapes: Payload
   ): boolean {
+    const { shape } = shapes;
     switch (shape.type) {
       case "rect":
         return (
@@ -262,7 +271,8 @@ export class Game {
     }
   }
 
-  private moveShape(shape: Shapes, x: number, y: number): void {
+  private moveShape(payload: Payload, x: number, y: number): void {
+    let { shape } = payload;
     switch (shape.type) {
       case "rect":
         shape.x = x;
@@ -286,10 +296,10 @@ export class Game {
     }
   }
 
-  private eraseShape(shape: Shapes) {
-    const index = this.shapes.indexOf(shape);
+  private eraseShape(tempShape: Payload) {
+    const index = this.tempShapes.indexOf(tempShape);
     if (index !== -1) {
-      this.shapes.splice(index, 1);
+      this.tempShapes.splice(index, 1);
 
       this.socket.send(
         JSON.stringify({
@@ -394,26 +404,31 @@ export class Game {
     this.ctx.scale(this.current.scale, this.current.scale);
 
     // Draw existing shapes
-    this.shapes.forEach((shape) => {
+    this.tempShapes.forEach((tempShape) => {
       this.ctx.strokeStyle =
-        shape === this.selection.selectedShape ? "blue" : "red";
-      if (shape.type === "rect") {
-        this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
-      } else if (shape.type === "circle") {
-        this.ctx.beginPath();
-        this.ctx.arc(
-          shape.centerX,
-          shape.centerY,
-          shape.radius,
-          0,
-          Math.PI * 2
-        );
-        this.ctx.stroke();
-      } else if (shape.type === "line") {
-        this.ctx.beginPath();
-        this.ctx.moveTo(shape.x, shape.y);
-        this.ctx.lineTo(shape.x2, shape.y2);
-        this.ctx.stroke();
+        tempShape.shape === this.selection.selectedShape?.shape
+          ? "blue"
+          : "red";
+      if (tempShape.function === "draw") {
+        const { shape } = tempShape;
+        if (shape.type === "rect") {
+          this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+        } else if (shape.type === "circle") {
+          this.ctx.beginPath();
+          this.ctx.arc(
+            shape.centerX,
+            shape.centerY,
+            shape.radius,
+            0,
+            Math.PI * 2
+          );
+          this.ctx.stroke();
+        } else if (shape.type === "line") {
+          this.ctx.beginPath();
+          this.ctx.moveTo(shape.x, shape.y);
+          this.ctx.lineTo(shape.x2, shape.y2);
+          this.ctx.stroke();
+        }
       }
     });
 

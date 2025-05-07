@@ -24,6 +24,11 @@ interface LineProps {
   y2: number;
 }
 export type Shapes = RectProps | CircleProps | LineProps;
+export interface Payload {
+  id: string;
+  function: "draw" | "erase";
+  shape: Shapes;
+}
 
 export default async function getExistingShapes(roomId: number) {
   try {
