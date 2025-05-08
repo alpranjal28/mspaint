@@ -1,5 +1,5 @@
 import { Tools } from "../components/Canvas";
-import getExistingShapes, { Payload, Shapes } from "./http";
+import getExistingShapes, { Payload, Shapes, Action } from "./http";
 
 interface SelectionState {
   active: boolean;
@@ -33,6 +33,9 @@ export class Game {
     dragOffsetY: 0,
   };
   private frame = 0;
+  private history: Action[] = [];
+  private redoStack: Action[] = [];
+  private maxHistorySize = 50;
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -73,7 +76,9 @@ export class Game {
 
   private async init() {
     const shapes = await getExistingShapes(this.roomId);
-    this.tempShapes = shapes || [];
+    this.tempShapes = (shapes || []).filter(
+      (shape) => shape && shape.shape && shape.shape.type
+    );
     this.render();
   }
 
@@ -82,19 +87,23 @@ export class Game {
       const data = JSON.parse(e.data);
 
       if (data.type === "broadcasted") {
-        const message = JSON.parse(data.message);
-        console.log("initSocket message = ", message);
+        try {
+          const message = JSON.parse(data.message);
+          console.log("initSocket message = ", message);
 
-        if (message.function === "erase") {
-          this.tempShapes = this.tempShapes.filter(
-            (shape) => shape.id !== message.id
-          );
+          if (message.function === "erase") {
+            this.tempShapes = this.tempShapes.filter(
+              (shape) => shape.id !== message.id
+            );
+          }
+          if (message.function === "draw") {
+            this.tempShapes.push(message);
+          }
+          // this.shapes.push(JSON.parse(data.message));
+          this.render();
+        } catch (error) {
+          console.error("Error parsing socket message:", error);
         }
-        if (message.function === "draw") {
-          this.tempShapes.push(message);
-        }
-        // this.shapes.push(JSON.parse(data.message));
-        this.render();
       }
     };
   }
@@ -118,6 +127,7 @@ export class Game {
     };
   }
 
+  // mouse events
   private onMouseDown = (e: MouseEvent) => {
     const pos = this.getMousePos(e);
 
@@ -184,6 +194,26 @@ export class Game {
   private onMouseUp = () => {
     if (this.selectedTool === Tools.Select) {
       if (this.selection.isDragging && this.selection.selectedShape) {
+        const oldPosition = {
+          x:
+            this.selection.selectedShape.shape.type === "circle"
+              ? this.selection.selectedShape.shape.centerX
+              : this.selection.selectedShape.shape.x,
+          y:
+            this.selection.selectedShape.shape.type === "circle"
+              ? this.selection.selectedShape.shape.centerY
+              : this.selection.selectedShape.shape.y,
+        };
+        const newPosition = {
+          x: oldPosition.x + (this.selection.dragOffsetX || 0),
+          y: oldPosition.y + (this.selection.dragOffsetY || 0),
+        };
+        this.addToHistory({
+          type: "move",
+          payload: this.selection.selectedShape,
+          oldPosition,
+          newPosition,
+        });
         this.socket.send(
           JSON.stringify({
             type: "chat",
@@ -200,6 +230,11 @@ export class Game {
         const id = `${Math.random() * 11}`;
         const payload: Payload = { function: "draw", shape: shape, id };
         console.log(payload);
+
+        this.addToHistory({
+          type: "draw",
+          payload,
+        });
 
         this.socket.send(
           JSON.stringify({
@@ -220,7 +255,7 @@ export class Game {
   }): Payload | undefined {
     for (let i = this.tempShapes.length - 1; i >= 0; i--) {
       const shape = this.tempShapes[i];
-      if (!shape) return;
+      if (!shape || !shape.shape) return;
       if (this.isPointInShape(pos, shape)) {
         return shape;
       }
@@ -230,9 +265,10 @@ export class Game {
 
   private isPointInShape(
     point: { x: number; y: number },
-    shapes: Payload
+    payload: Payload
   ): boolean {
-    const { shape } = shapes;
+    if (!payload || !payload.shape) return false;
+    const { shape } = payload;
     switch (shape.type) {
       case "rect":
         return (
@@ -300,6 +336,11 @@ export class Game {
   private eraseShape(tempShape: Payload) {
     const index = this.tempShapes.indexOf(tempShape);
     if (index !== -1) {
+      this.addToHistory({
+        type: "erase",
+        payload: tempShape,
+      });
+
       this.tempShapes.splice(index, 1);
 
       this.socket.send(
@@ -312,6 +353,112 @@ export class Game {
 
       this.render();
     }
+  }
+
+  public undo(): void {
+    if (this.history.length === 0) return;
+    const action = this.history.pop()!;
+    this.redoStack.push(action);
+
+    switch (action.type) {
+      case "draw":
+        this.tempShapes = this.tempShapes.filter(
+          (shape) => shape.id !== action.payload.id
+        );
+        break;
+      case "erase":
+        this.tempShapes.push(action.payload);
+        break;
+      case "move":
+        const shape = this.tempShapes.find((s) => s.id);
+        if (shape) {
+          if (shape.shape.type === "circle") {
+            shape.shape.centerX = action.oldPosition.x;
+            shape.shape.centerY = action.oldPosition.y;
+          } else {
+            shape.shape.x = action.oldPosition.x;
+            shape.shape.y = action.oldPosition.y;
+            if (shape.shape.type === "line") {
+              shape.shape.x2 =
+                action.oldPosition.x +
+                (action.newPosition.x - action.oldPosition.x); //////////////////
+              shape.shape.y2 =
+                action.oldPosition.y +
+                (action.newPosition.y - action.oldPosition.y); /////////////////
+            }
+          }
+        }
+        break;
+      default:
+        break;
+    }
+    this.render();
+
+    /////////broadcast
+    this.broadcastAction(action);
+  }
+
+  public redo(): void {
+    if (this.redoStack.length === 0) return;
+    const action = this.redoStack.pop()!;
+    this.history.push(action);
+
+    switch (action.type) {
+      case "draw":
+        this.tempShapes.push(action.payload);
+        break;
+      case "erase":
+        this.tempShapes = this.tempShapes.filter(
+          (shape) => shape.id !== action.payload.id
+        );
+        break;
+      case "move":
+        const shape = this.tempShapes.find((s) => s.id);
+        if (shape) {
+          if (shape.shape.type === "circle") {
+            shape.shape.centerX = action.newPosition.x;
+            shape.shape.centerY = action.newPosition.y;
+          } else {
+            shape.shape.x = action.newPosition.x;
+            shape.shape.y = action.newPosition.y;
+            if (shape.shape.type === "line") {
+              shape.shape.x2 =
+                action.newPosition.x +
+                (action.oldPosition.x - action.newPosition.x); //////////////////
+              shape.shape.y2 =
+                action.newPosition.y +
+                (action.oldPosition.y - action.newPosition.y); /////////////////
+            }
+          }
+        }
+        break;
+      default:
+        break;
+    }
+    this.render();
+
+    this.broadcastAction(action);
+  }
+
+  private addToHistory(action: Action): void {
+    this.history.push(action);
+    this.redoStack = []; // Clear redo stack on new action
+
+    if (this.history.length > this.maxHistorySize) {
+      this.history.shift(); // Remove the oldest action if array exceed the max size
+    }
+    // this.broadcastAction(action);
+  }
+
+  private broadcastAction(action: Action): void {
+    // Send the action to the server
+    this.socket.send(
+      JSON.stringify({
+        type: "chat",
+        roomId: this.roomId,
+        message: JSON.stringify(action.payload),
+      })
+    );
   }
 
   private onWheel = (e: WheelEvent) => {
@@ -460,11 +607,29 @@ export class Game {
     }
   }
 
+  private onKeyDown = (e: KeyboardEvent) => {
+    // Ctrl+Z for undo
+    if (e.ctrlKey && e.key === "z") {
+      e.preventDefault();
+      this.undo();
+    }
+
+    // Ctrl+Y or Ctrl+Shift+Z for redo
+    if (
+      (e.ctrlKey && e.key === "y") ||
+      (e.ctrlKey && e.shiftKey && e.key === "z")
+    ) {
+      e.preventDefault();
+      this.redo();
+    }
+  };
+
   cleanup() {
     cancelAnimationFrame(this.frame);
     this.canvas.removeEventListener("mousedown", this.onMouseDown);
     this.canvas.removeEventListener("mousemove", this.onMouseMove);
     this.canvas.removeEventListener("mouseup", this.onMouseUp);
     this.canvas.removeEventListener("wheel", this.onWheel);
+    this.canvas.removeEventListener("keydown", this.onKeyDown);
   }
 }

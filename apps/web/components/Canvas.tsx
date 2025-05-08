@@ -55,7 +55,7 @@ export default function Canvas({
 
   function Dock() {
     return (
-      <div className="absolute flex justify-center gap-4 p-4 bg-slate-600 transition-all duration-500">
+      <div className="absolute flex justify-center gap-4 p-4 bg-slate-600 transition-all duration-500 select-none">
         <div
           className="border-2 border-black p-2 bg-red-300 rounded-full cursor-pointer hover:bg-red-500 transition-colors"
           onClick={() => {
@@ -102,6 +102,32 @@ export default function Canvas({
     );
   }
 
+  function handleUndo() {
+    game?.undo();
+  }
+  function handleRedo() {
+    game?.redo();
+  }
+
+  function QuickActions() {
+    return (
+      <div className="absolute bottom-0 flex justify-center gap-4 p-4 bg-slate-600 transition-all duration-500 select-none">
+        <div
+          className="border-2 border-black p-2 bg-red-300 rounded-full cursor-pointer hover:bg-red-500 transition-colors"
+          onClick={handleUndo}
+        >
+          undo
+        </div>
+        <div
+          className="border-2 border-black p-2 bg-red-300 rounded-full cursor-pointer hover:bg-red-500 transition-colors"
+          onClick={handleRedo}
+        >
+          redo
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="relative flex min-h-screen bg-gray-300">
       <canvas
@@ -110,6 +136,7 @@ export default function Canvas({
         width={windowDimensions.width}
       ></canvas>
       <Dock />
+      <QuickActions />
     </main>
   );
 }
