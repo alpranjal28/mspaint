@@ -41,7 +41,9 @@ export class Game {
     canvas: HTMLCanvasElement,
     roomId: number,
     socket: WebSocket,
-    selectedTool: Tools
+    selectedTool: Tools,
+    private onStartDrawing: () => void,
+    private onStopDrawing: () => void
   ) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
@@ -166,6 +168,7 @@ export class Game {
         lastX: pos.x,
         lastY: pos.y,
       };
+      this.onStartDrawing();
     }
     this.animate();
   };
@@ -225,6 +228,7 @@ export class Game {
       this.selection.isDragging = false;
     } else if (this.drawing.active) {
       this.drawing.active = false;
+      this.onStopDrawing();
       const shape = this.createShape();
       if (shape) {
         const id = `${Math.random() * 11}`;
