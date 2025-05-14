@@ -78,7 +78,35 @@ export class Game {
 
   private async init() {
     const shapes = await getExistingShapes(this.roomId);
-    this.tempShapes = shapes || [];
+
+    if (shapes && shapes.length > 0) {
+      // Sort shapes by timestamp if available
+      const sortedShapes = shapes.sort((a, b) => {
+        const timeA = a.timestamp || 0;
+        const timeB = b.timestamp || 0;
+        return timeA - timeB;
+      });
+
+      // Process shapes in chronological order
+      const activeShapes = new Map<string, Payload>();
+
+      sortedShapes.forEach((shape) => {
+        if (shape.function === "erase") {
+          // Remove erased shapes
+          activeShapes.delete(shape.id);
+        } else if (shape.function === "draw" || shape.function === "move") {
+          // Add or update shapes
+          activeShapes.set(shape.id, shape);
+        }
+      });
+
+      // Convert map to array
+      this.tempShapes = Array.from(activeShapes.values());
+      console.log("Initialized with filtered shapes:", this.tempShapes);
+    } else {
+      this.tempShapes = [];
+    }
+
     this.render();
   }
 
@@ -237,10 +265,17 @@ export class Game {
     } else if (this.drawing.active) {
       this.drawing.active = false;
       this.onStopDrawing();
+
+      // create shape and add to tempShapes
       const shape = this.createShape();
       if (shape) {
         const id = `${Math.random() * 11}`;
-        const payload: Payload = { function: "draw", shape: shape, id };
+        const payload: Payload = {
+          function: "draw",
+          shape: shape,
+          id,
+          timestamp: Date.now(),
+        };
         console.log(payload);
 
         this.addToHistory({

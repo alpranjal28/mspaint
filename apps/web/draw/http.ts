@@ -28,7 +28,7 @@ export interface Payload {
   function: "draw" | "erase" | "move";
   shape: Shapes;
   color?: string;
-  timestamp?: number;
+  timestamp: number;
 }
 
 // actions
