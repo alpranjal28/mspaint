@@ -411,87 +411,185 @@ export class Game {
 
   public undo(): void {
     if (this.history.length === 0) return;
+
     const action = this.history.pop()!;
     this.redoStack.push(action);
 
     switch (action.type) {
       case "draw":
+        // Remove the drawn shape
         this.tempShapes = this.tempShapes.filter(
           (shape) => shape.id !== action.payload.id
         );
+
+        // Send erase message to server
+        const eraseMessage = {
+          function: "erase",
+          id: action.payload.id,
+          timestamp: Date.now(),
+        };
+
+        this.socket.send(
+          JSON.stringify({
+            type: "chat",
+            roomId: this.roomId,
+            message: JSON.stringify(eraseMessage),
+          })
+        );
         break;
+
       case "erase":
-        this.tempShapes.push(action.payload);
+        // Add back the erased shape
+        this.tempShapes.push({
+          ...action.payload,
+          timestamp: Date.now(), // Update timestamp
+        });
+
+        // Send draw message to server
+        this.socket.send(
+          JSON.stringify({
+            type: "chat",
+            roomId: this.roomId,
+            message: JSON.stringify({
+              ...action.payload,
+              timestamp: Date.now(),
+            }),
+          })
+        );
         break;
+
       case "move":
-        const shape = this.tempShapes.find((s) => s.id);
-        if (shape) {
-          if (shape.shape.type === "circle") {
-            shape.shape.centerX = action.oldPosition.x;
-            shape.shape.centerY = action.oldPosition.y;
+        // Find the shape to move back
+        const shapeToUndo = this.tempShapes.find(
+          (s) => s.id === action.payload.id
+        );
+
+        if (shapeToUndo) {
+          // Move it back to original position
+          if (shapeToUndo.shape.type === "circle") {
+            shapeToUndo.shape.centerX = action.oldPosition.x;
+            shapeToUndo.shape.centerY = action.oldPosition.y;
           } else {
-            shape.shape.x = action.oldPosition.x;
-            shape.shape.y = action.oldPosition.y;
-            if (shape.shape.type === "line") {
-              shape.shape.x2 =
-                action.oldPosition.x +
-                (action.newPosition.x - action.oldPosition.x); //////////////////
-              shape.shape.y2 =
-                action.oldPosition.y +
-                (action.newPosition.y - action.oldPosition.y); /////////////////
+            shapeToUndo.shape.x = action.oldPosition.x;
+            shapeToUndo.shape.y = action.oldPosition.y;
+
+            if (shapeToUndo.shape.type === "line") {
+              // Calculate the difference between old and new positions
+              const dx = action.newPosition.x - action.oldPosition.x;
+              const dy = action.newPosition.y - action.oldPosition.y;
+              // Move the end point back by the same amount
+              shapeToUndo.shape.x2 -= dx;
+              shapeToUndo.shape.y2 -= dy;
             }
           }
+
+          // Update timestamp
+          shapeToUndo.timestamp = Date.now();
+
+          // Send updated shape to server
+          this.socket.send(
+            JSON.stringify({
+              type: "chat",
+              roomId: this.roomId,
+              message: JSON.stringify(shapeToUndo),
+            })
+          );
         }
         break;
-      default:
-        break;
     }
-    this.render();
 
-    /////////broadcast
-    this.broadcastAction(action);
+    this.render();
   }
 
   public redo(): void {
     if (this.redoStack.length === 0) return;
+
     const action = this.redoStack.pop()!;
     this.history.push(action);
 
     switch (action.type) {
       case "draw":
-        this.tempShapes.push(action.payload);
+        // Add the shape back
+        const drawPayload = {
+          ...action.payload,
+          timestamp: Date.now(), // Update timestamp
+        };
+
+        this.tempShapes.push(drawPayload);
+
+        // Send draw message to server
+        this.socket.send(
+          JSON.stringify({
+            type: "chat",
+            roomId: this.roomId,
+            message: JSON.stringify(drawPayload),
+          })
+        );
         break;
+
       case "erase":
+        // Remove the shape again
         this.tempShapes = this.tempShapes.filter(
           (shape) => shape.id !== action.payload.id
         );
+
+        // Send erase message to server
+        const eraseMessage = {
+          function: "erase",
+          id: action.payload.id,
+          timestamp: Date.now(),
+        };
+
+        this.socket.send(
+          JSON.stringify({
+            type: "chat",
+            roomId: this.roomId,
+            message: JSON.stringify(eraseMessage),
+          })
+        );
         break;
+
       case "move":
-        const shape = this.tempShapes.find((s) => s.id);
-        if (shape) {
-          if (shape.shape.type === "circle") {
-            shape.shape.centerX = action.newPosition.x;
-            shape.shape.centerY = action.newPosition.y;
+        // Find the shape to move
+        const shapeToRedo = this.tempShapes.find(
+          (s) => s.id === action.payload.id
+        );
+
+        if (shapeToRedo) {
+          // Move it to the new position
+          if (shapeToRedo.shape.type === "circle") {
+            shapeToRedo.shape.centerX = action.newPosition.x;
+            shapeToRedo.shape.centerY = action.newPosition.y;
           } else {
-            shape.shape.x = action.newPosition.x;
-            shape.shape.y = action.newPosition.y;
-            if (shape.shape.type === "line") {
-              shape.shape.x2 =
-                action.newPosition.x +
-                (action.oldPosition.x - action.newPosition.x); //////////////////
-              shape.shape.y2 =
-                action.newPosition.y +
-                (action.oldPosition.y - action.newPosition.y); /////////////////
+            shapeToRedo.shape.x = action.newPosition.x;
+            shapeToRedo.shape.y = action.newPosition.y;
+
+            if (shapeToRedo.shape.type === "line") {
+              // Calculate the difference between old and new positions
+              const dx = action.newPosition.x - action.oldPosition.x;
+              const dy = action.newPosition.y - action.oldPosition.y;
+              // Move the end point by the same amount
+              shapeToRedo.shape.x2 += dx;
+              shapeToRedo.shape.y2 += dy;
             }
           }
+
+          // Update timestamp
+          shapeToRedo.timestamp = Date.now();
+
+          // Send updated shape to server
+          this.socket.send(
+            JSON.stringify({
+              type: "chat",
+              roomId: this.roomId,
+              message: JSON.stringify(shapeToRedo),
+            })
+          );
         }
         break;
-      default:
-        break;
     }
-    this.render();
 
-    this.broadcastAction(action);
+    this.render();
   }
 
   private addToHistory(action: Action): void {
