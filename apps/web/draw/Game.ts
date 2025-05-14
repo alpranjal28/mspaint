@@ -356,6 +356,19 @@ export class Game {
   }
 
   private moveShape(payload: Payload, x: number, y: number): void {
+    // Store original position for history
+    const oldPosition = {
+      x:
+        payload.shape.type === "circle"
+          ? payload.shape.centerX
+          : payload.shape.x,
+      y:
+        payload.shape.type === "circle"
+          ? payload.shape.centerY
+          : payload.shape.y,
+    };
+
+    // Update the shape position
     let { shape } = payload;
     switch (shape.type) {
       case "rect":
@@ -378,6 +391,10 @@ export class Game {
         break;
       }
     }
+
+    // Update timestamp
+    payload.timestamp = Date.now();
+    payload.function = "move"; // Ensure it's marked as a move action
   }
 
   private eraseShape(tempShape: Payload) {

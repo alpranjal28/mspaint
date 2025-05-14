@@ -6,13 +6,6 @@ import { prismaClient } from "@repo/db-config/prisma";
 
 const wss = new WebSocket.Server({ port: 8080 });
 
-// const rooms: Map<string, Set<WebSocket>> = new Map();
-// const users: Map<string, WebSocket> = new Map();
-
-// const broadcast = (message: string) => {
-//   users.forEach((ws) => ws.send(message));
-// };
-
 interface RoomUser {
   ws: WebSocket;
   room: number[];
@@ -76,18 +69,13 @@ wss.on("connection", (ws, request) => {
         },
       });
 
-      // console.log("room users", roomUsers);
-
+      // Only broadcast to users in the same room
       roomUsers.forEach((u) => {
-        console.log("broadcasting to room", roomId);
-        u.ws.send(
-          JSON.stringify({ type: "broadcasted", message, roomId, userId })
-        );
-
         if (u.room.includes(roomId)) {
+          u.ws.send(
+            JSON.stringify({ type: "broadcasted", message, roomId, userId })
+          );
           console.log("broadcasted to room", roomId);
-        } else {
-          console.log("not broadcasting to room", roomId);
         }
       });
     }
