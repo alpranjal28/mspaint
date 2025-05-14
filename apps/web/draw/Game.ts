@@ -78,9 +78,7 @@ export class Game {
 
   private async init() {
     const shapes = await getExistingShapes(this.roomId);
-    this.tempShapes = (shapes || []).filter(
-      (shape) => shape && shape.shape && shape.shape.type
-    );
+    this.tempShapes = shapes || [];
     this.render();
   }
 
@@ -94,14 +92,24 @@ export class Game {
           console.log("initSocket message = ", message);
 
           if (message.function === "erase") {
+            // Remove the shape from tempShapes
+            console.log("erase shape with ID:", message.id);
             this.tempShapes = this.tempShapes.filter(
               (shape) => shape.id !== message.id
             );
-          }
-          if (message.function === "draw") {
+          } else if (message.function === "draw") {
+            // Add the shape to tempShapes
+            console.log("drawing new shape:", message);
             this.tempShapes.push(message);
+          } else if (message.function === "move") {
+            // find the shape and update its position
+            const shapeToMove = this.tempShapes.findIndex(
+              (s) => s.id === message.id
+            );
+            if (shapeToMove !== -1 && message.shape) {
+              this.tempShapes[shapeToMove]!.shape = message.shape;
+            }
           }
-          // this.shapes.push(JSON.parse(data.message));
           this.render();
         } catch (error) {
           console.error("Error parsing socket message:", error);
@@ -347,11 +355,18 @@ export class Game {
 
       this.tempShapes.splice(index, 1);
 
+      // erase shape message for server
+      const eraseMessage = {
+        function: "erase",
+        id: tempShape.id,
+        timestamp: Date.now(),
+      };
+
       this.socket.send(
         JSON.stringify({
           type: "chat",
           roomId: this.roomId,
-          message: JSON.stringify({ function: "erase", id: tempShape.id }),
+          message: JSON.stringify(eraseMessage),
         })
       );
 
@@ -455,12 +470,36 @@ export class Game {
   }
 
   private broadcastAction(action: Action): void {
+    let message: Payload;
+
+    switch (action.type) {
+      case "draw":
+        message = action.payload;
+        break;
+      case "erase":
+        message = {
+          function: "erase",
+          id: action.payload.id,
+          shape: action.payload.shape,
+          timestamp: Date.now(),
+        };
+        break;
+      case "move":
+        message = {
+          function: "move",
+          id: action.payload.id,
+          shape: action.payload.shape,
+          timestamp: Date.now(),
+        };
+        break;
+    }
+
     // Send the action to the server
     this.socket.send(
       JSON.stringify({
         type: "chat",
         roomId: this.roomId,
-        message: JSON.stringify(action.payload),
+        message: JSON.stringify(message),
       })
     );
   }

@@ -25,8 +25,10 @@ interface LineProps {
 export type Shapes = RectProps | CircleProps | LineProps;
 export interface Payload {
   id: string;
-  function: "draw" | "erase";
+  function: "draw" | "erase" | "move";
   shape: Shapes;
+  color?: string;
+  timestamp?: number;
 }
 
 // actions
