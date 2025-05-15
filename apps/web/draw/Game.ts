@@ -25,6 +25,7 @@ export class Game {
   private current = { scale: 1, x: 0, y: 0 };
   private target = { scale: 1, x: 0, y: 0 };
   private drawing = { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 };
+  private pencilPoints: { x: number; y: number }[] = [];
   private selection: SelectionState = {
     active: false,
     startX: 0,
@@ -206,26 +207,55 @@ export class Game {
     } else if (this.selectedTool === Tools.Select) {
       const selectedShape = this.findShapeAtPosition(pos);
 
+      let dragOffsetX = 0;
+      let dragOffsetY = 0;
+
+      if (selectedShape) {
+        // Calculate drag offsets based on shape type
+        if (selectedShape.shape.type === "circle") {
+          dragOffsetX = pos.x - selectedShape.shape.centerX;
+          dragOffsetY = pos.y - selectedShape.shape.centerY;
+        } else if (
+          selectedShape.shape.type === "rect" ||
+          selectedShape.shape.type === "line"
+        ) {
+          dragOffsetX = pos.x - selectedShape.shape.x;
+          dragOffsetY = pos.y - selectedShape.shape.y;
+        } else if (
+          selectedShape.shape.type === "pencil" &&
+          selectedShape.shape.points &&
+          selectedShape.shape.points.length > 0
+        ) {
+          // For pencil, use the first point as reference
+          dragOffsetX = pos.x - selectedShape.shape.points[0]!.x;
+          dragOffsetY = pos.y - selectedShape.shape.points[0]!.y;
+        }
+      }
+      this.canvas.style.cursor = "move";
       this.selection = {
         active: true,
         startX: pos.x,
         startY: pos.y,
         selectedShape,
         isDragging: !!selectedShape,
-        dragOffsetX: selectedShape
-          ? pos.x -
-            (selectedShape.shape.type === "circle"
-              ? selectedShape.shape.centerX
-              : selectedShape.shape.x)
-          : 0,
-        dragOffsetY: selectedShape
-          ? pos.y -
-            (selectedShape.shape.type === "circle"
-              ? selectedShape.shape.centerY
-              : selectedShape.shape.y)
-          : 0,
+        dragOffsetX,
+        // : selectedShape
+        // ? pos.x -
+        //   (selectedShape.shape.type === "circle"
+        //     ? selectedShape.shape.centerX
+        //     : selectedShape.shape.x)
+        // : 0
+        dragOffsetY,
+        // : selectedShape
+        // ? pos.y -
+        //   (selectedShape.shape.type === "circle"
+        //     ? selectedShape.shape.centerY
+        //     : selectedShape.shape.y)
+        // : 0,
       };
     } else {
+      // Start drawing
+      // this.canvas.style.cursor = "crosshair";
       this.drawing = {
         active: true,
         startX: pos.x,
@@ -233,6 +263,9 @@ export class Game {
         lastX: pos.x,
         lastY: pos.y,
       };
+      if (this.selectedTool === Tools.Pencil) {
+        this.pencilPoints = [{ x: pos.x, y: pos.y }];
+      }
       this.onStartDrawing();
     }
     this.animate();
@@ -271,6 +304,10 @@ export class Game {
     } else if (this.drawing.active) {
       this.drawing.lastX = pos.x;
       this.drawing.lastY = pos.y;
+      if (this.selectedTool === Tools.Pencil) {
+        this.pencilPoints.push({ x: pos.x, y: pos.y });
+      }
+      this.render();
     }
   };
 
@@ -281,16 +318,21 @@ export class Game {
     }
     if (this.selectedTool === Tools.Select) {
       if (this.selection.isDragging && this.selection.selectedShape) {
-        const oldPosition = {
-          x:
-            this.selection.selectedShape.shape.type === "circle"
-              ? this.selection.selectedShape.shape.centerX
-              : this.selection.selectedShape.shape.x,
-          y:
-            this.selection.selectedShape.shape.type === "circle"
-              ? this.selection.selectedShape.shape.centerY
-              : this.selection.selectedShape.shape.y,
-        };
+        let oldPosition = { x: 0, y: 0 };
+
+        // Get the old position based on shape type
+        const shape = this.selection.selectedShape.shape;
+        if (shape.type === "circle") {
+          oldPosition = { x: shape.centerX, y: shape.centerY };
+        } else if (shape.type === "rect" || shape.type === "line") {
+          oldPosition = { x: shape.x, y: shape.y };
+        } else if (
+          shape.type === "pencil" &&
+          shape.points &&
+          shape.points.length > 0
+        ) {
+          oldPosition = { x: shape.points[0]!.x, y: shape.points[0]!.y };
+        }
         const newPosition = {
           x: oldPosition.x + (this.selection.dragOffsetX || 0),
           y: oldPosition.y + (this.selection.dragOffsetY || 0),
@@ -400,42 +442,84 @@ export class Game {
 
         return Math.hypot(point.x - projX, point.y - projY) <= 5;
       }
+
+      case "pencil": {
+        // For pencil, check if point is near any segment of the path
+        for (let i = 1; i < shape.points.length; i++) {
+          const p1 = shape.points[i - 1];
+          const p2 = shape.points[i];
+          if (!p1 || !p2) continue;
+          // Calculate the distance from the point to the line segment
+          // using the projection formula
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const length = Math.sqrt(dx * dx + dy * dy);
+
+          if (length === 0) continue;
+
+          const t = Math.max(
+            0,
+            Math.min(
+              1,
+              ((point.x - p1.x) * dx + (point.y - p1.y) * dy) /
+                (length * length)
+            )
+          );
+
+          const projX = p1.x + t * dx;
+          const projY = p1.y + t * dy;
+
+          if (Math.hypot(point.x - projX, point.y - projY) <= 5) {
+            return true;
+          }
+        }
+        return false;
+      }
     }
   }
 
   private moveShape(payload: Payload, x: number, y: number): void {
-    // Store original position for history
-    const oldPosition = {
-      x:
-        payload.shape.type === "circle"
-          ? payload.shape.centerX
-          : payload.shape.x,
-      y:
-        payload.shape.type === "circle"
-          ? payload.shape.centerY
-          : payload.shape.y,
-    };
-
-    // Update the shape position
     let { shape } = payload;
+    // Store original position for history
+    let oldPosition;
+
     switch (shape.type) {
       case "rect":
+        oldPosition = { x: shape.x, y: shape.y };
         shape.x = x;
         shape.y = y;
         break;
 
       case "circle":
+        oldPosition = { x: shape.centerX, y: shape.centerY };
         shape.centerX = x;
         shape.centerY = y;
         break;
 
       case "line": {
+        oldPosition = { x: shape.x, y: shape.y };
         const dx = shape.x2 - shape.x;
         const dy = shape.y2 - shape.y;
         shape.x = x;
         shape.y = y;
         shape.x2 = x + dx;
         shape.y2 = y + dy;
+        break;
+      }
+
+      case "pencil": {
+        if (!shape.points || shape.points.length === 0) return;
+
+        // Calculate the offset to move all points
+        oldPosition = { x: shape.points[0]!.x, y: shape.points[0]!.y };
+        const dx = x - oldPosition.x;
+        const dy = y - oldPosition.y;
+
+        // Move all points by the same offset
+        shape.points = shape.points.map((point) => ({
+          x: point.x + dx,
+          y: point.y + dy,
+        }));
         break;
       }
     }
@@ -486,21 +570,6 @@ export class Game {
         this.tempShapes = this.tempShapes.filter(
           (shape) => shape.id !== action.payload.id
         );
-
-        // Send erase message to server
-        const eraseMessage = {
-          function: "erase",
-          id: action.payload.id,
-          timestamp: Date.now(),
-        };
-
-        this.socket.send(
-          JSON.stringify({
-            type: "chat",
-            roomId: this.roomId,
-            message: JSON.stringify(eraseMessage),
-          })
-        );
         break;
 
       case "erase":
@@ -509,18 +578,6 @@ export class Game {
           ...action.payload,
           timestamp: Date.now(), // Update timestamp
         });
-
-        // Send draw message to server
-        this.socket.send(
-          JSON.stringify({
-            type: "chat",
-            roomId: this.roomId,
-            message: JSON.stringify({
-              ...action.payload,
-              timestamp: Date.now(),
-            }),
-          })
-        );
         break;
 
       case "move":
@@ -530,40 +587,65 @@ export class Game {
         );
 
         if (shapeToUndo) {
-          // Move it back to original position
-          if (shapeToUndo.shape.type === "circle") {
-            shapeToUndo.shape.centerX = action.oldPosition.x;
-            shapeToUndo.shape.centerY = action.oldPosition.y;
-          } else {
-            shapeToUndo.shape.x = action.oldPosition.x;
-            shapeToUndo.shape.y = action.oldPosition.y;
+          // Move it back to original position based on shape type
+          const shape = shapeToUndo.shape;
+          if (shape.type === "circle") {
+            shape.centerX = action.oldPosition.x;
+            shape.centerY = action.oldPosition.y;
+          } else if (shape.type === "rect" || shape.type === "line") {
+            shape.x = action.oldPosition.x;
+            shape.y = action.oldPosition.y;
 
-            if (shapeToUndo.shape.type === "line") {
+            if (shape.type === "line") {
               // Calculate the difference between old and new positions
               const dx = action.newPosition.x - action.oldPosition.x;
               const dy = action.newPosition.y - action.oldPosition.y;
               // Move the end point back by the same amount
-              shapeToUndo.shape.x2 -= dx;
-              shapeToUndo.shape.y2 -= dy;
+              shape.x2 -= dx;
+              shape.y2 -= dy;
             }
+          } else if (
+            shape.type === "pencil" &&
+            shape.points &&
+            shape.points.length > 0 &&
+            shape.points[0]
+          ) {
+            // For pencil, move all points back
+            const dx = action.oldPosition.x - shape.points[0].x;
+            const dy = action.oldPosition.y - shape.points[0].y;
+
+            shape.points = shape.points.map((point) => ({
+              x: point.x + dx,
+              y: point.y + dy,
+            }));
           }
 
           // Update timestamp
           shapeToUndo.timestamp = Date.now();
-
-          // Send updated shape to server
-          this.socket.send(
-            JSON.stringify({
-              type: "chat",
-              roomId: this.roomId,
-              message: JSON.stringify(shapeToUndo),
-            })
-          );
         }
         break;
     }
 
     this.render();
+
+    if (action.type === "draw") {
+      this.broadcastAction({
+        type: "draw",
+        payload: action.payload,
+      });
+    } else if (action.type === "erase") {
+      this.broadcastAction({
+        type: "erase",
+        payload: action.payload,
+      });
+    } else if (action.type === "move") {
+      this.broadcastAction({
+        type: "move",
+        payload: action.payload,
+        oldPosition: action.oldPosition,
+        newPosition: action.newPosition,
+      });
+    }
   }
 
   public redo(): void {
@@ -581,36 +663,12 @@ export class Game {
         };
 
         this.tempShapes.push(drawPayload);
-
-        // Send draw message to server
-        this.socket.send(
-          JSON.stringify({
-            type: "chat",
-            roomId: this.roomId,
-            message: JSON.stringify(drawPayload),
-          })
-        );
         break;
 
       case "erase":
         // Remove the shape again
         this.tempShapes = this.tempShapes.filter(
           (shape) => shape.id !== action.payload.id
-        );
-
-        // Send erase message to server
-        const eraseMessage = {
-          function: "erase",
-          id: action.payload.id,
-          timestamp: Date.now(),
-        };
-
-        this.socket.send(
-          JSON.stringify({
-            type: "chat",
-            roomId: this.roomId,
-            message: JSON.stringify(eraseMessage),
-          })
         );
         break;
 
@@ -621,40 +679,65 @@ export class Game {
         );
 
         if (shapeToRedo) {
-          // Move it to the new position
-          if (shapeToRedo.shape.type === "circle") {
-            shapeToRedo.shape.centerX = action.newPosition.x;
-            shapeToRedo.shape.centerY = action.newPosition.y;
-          } else {
-            shapeToRedo.shape.x = action.newPosition.x;
-            shapeToRedo.shape.y = action.newPosition.y;
+          // Move it to the new position based on shape type
+          const shape = shapeToRedo.shape;
+          if (shape.type === "circle") {
+            shape.centerX = action.newPosition.x;
+            shape.centerY = action.newPosition.y;
+          } else if (shape.type === "rect" || shape.type === "line") {
+            shape.x = action.newPosition.x;
+            shape.y = action.newPosition.y;
 
-            if (shapeToRedo.shape.type === "line") {
+            if (shape.type === "line") {
               // Calculate the difference between old and new positions
               const dx = action.newPosition.x - action.oldPosition.x;
               const dy = action.newPosition.y - action.oldPosition.y;
               // Move the end point by the same amount
-              shapeToRedo.shape.x2 += dx;
-              shapeToRedo.shape.y2 += dy;
+              shape.x2 += dx;
+              shape.y2 += dy;
             }
+          } else if (
+            shape.type === "pencil" &&
+            shape.points &&
+            shape.points.length > 0 &&
+            shape.points[0]
+          ) {
+            // For pencil, move all points
+
+            const dx = action.newPosition.x - shape.points[0].x;
+            const dy = action.newPosition.y - shape.points[0].y;
+
+            shape.points = shape.points.map((point) => ({
+              x: point.x + dx,
+              y: point.y + dy,
+            }));
           }
 
           // Update timestamp
           shapeToRedo.timestamp = Date.now();
-
-          // Send updated shape to server
-          this.socket.send(
-            JSON.stringify({
-              type: "chat",
-              roomId: this.roomId,
-              message: JSON.stringify(shapeToRedo),
-            })
-          );
         }
         break;
     }
 
     this.render();
+    if (action.type === "draw") {
+      this.broadcastAction({
+        type: "draw",
+        payload: action.payload,
+      });
+    } else if (action.type === "erase") {
+      this.broadcastAction({
+        type: "erase",
+        payload: action.payload,
+      });
+    } else if (action.type === "move") {
+      this.broadcastAction({
+        type: "move",
+        payload: action.payload,
+        oldPosition: action.oldPosition,
+        newPosition: action.newPosition,
+      });
+    }
   }
 
   private addToHistory(action: Action): void {
@@ -664,11 +747,11 @@ export class Game {
     if (this.history.length > this.maxHistorySize) {
       this.history.shift(); // Remove the oldest action if array exceed the max size
     }
-    // this.broadcastAction(action);
+    this.broadcastAction(action);
   }
 
   private broadcastAction(action: Action): void {
-    let message: Payload;
+    let message: any;
 
     switch (action.type) {
       case "draw":
@@ -678,7 +761,6 @@ export class Game {
         message = {
           function: "erase",
           id: action.payload.id,
-          shape: action.payload.shape,
           timestamp: Date.now(),
         };
         break;
@@ -725,9 +807,9 @@ export class Game {
       this.target.x += (newWorldX - prevWorldX) * this.target.scale;
       this.target.y += (newWorldY - prevWorldY) * this.target.scale;
     } else {
-      const pan = 50;
-      this.target.x += e.shiftKey ? -e.deltaY : 0;
-      this.target.y += !e.shiftKey ? -e.deltaY : 0;
+      this.target.y += -e.deltaY;
+      this.target.x += -e.deltaX;
+      this.target.scale = this.current.scale;
     }
 
     this.animate();
@@ -761,13 +843,18 @@ export class Game {
           x2: lastX,
           y2: lastY,
         };
+      case Tools.Pencil:
+        return {
+          type: "pencil",
+          points: this.pencilPoints,
+        };
     }
     return null;
   }
 
   private animate = () => {
     // lerp => determines how quickly the current value approaches the target value
-    const lerp = (a: number, b: number) => a + (b - a) * 0.15;
+    const lerp = (a: number, b: number) => a + (b - a) * 0.25;
     // Higher values (closer to 1.0) make the movement faster and more responsive but less smooth
     // Lower values (closer to 0.0) make the movement slower and smoother but less responsive
 
@@ -829,6 +916,14 @@ export class Game {
           this.ctx.moveTo(shape.x, shape.y);
           this.ctx.lineTo(shape.x2, shape.y2);
           this.ctx.stroke();
+        } else if (shape.type === "pencil") {
+          this.ctx.beginPath();
+          ///////////////
+          this.ctx.moveTo(shape.points[0]!.x, shape.points[0]!.y);
+          shape.points.forEach((point) => {
+            this.ctx.lineTo(point.x, point.y);
+          });
+          this.ctx.stroke();
         }
       }
     });
@@ -853,6 +948,13 @@ export class Game {
         this.ctx.beginPath();
         this.ctx.moveTo(shape.x, shape.y);
         this.ctx.lineTo(shape.x2, shape.y2);
+        this.ctx.stroke();
+      } else if (shape?.type === "pencil") {
+        this.ctx.beginPath();
+        this.ctx.moveTo(shape.points[0]!.x, shape.points[0]!.y);
+        shape.points.forEach((point) => {
+          this.ctx.lineTo(point.x, point.y);
+        });
         this.ctx.stroke();
       }
     }

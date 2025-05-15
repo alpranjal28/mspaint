@@ -22,7 +22,11 @@ interface LineProps {
   x2: number;
   y2: number;
 }
-export type Shapes = RectProps | CircleProps | LineProps;
+interface PencilProps {
+  type: "pencil";
+  points: { x: number; y: number }[];
+}
+export type Shapes = RectProps | CircleProps | LineProps | PencilProps;
 export interface Payload {
   id: string;
   function: "draw" | "erase" | "move";
@@ -32,21 +36,21 @@ export interface Payload {
 }
 
 // actions
-export type ActionType = 'draw' | 'erase' | 'move';
+export type ActionType = "draw" | "erase" | "move";
 export interface Command {
   execute(): void;
   undo(): void;
 }
 export interface DrawAction {
-  type: 'draw';
+  type: "draw";
   payload: Payload;
 }
 export interface EraseAction {
-  type: 'erase';
+  type: "erase";
   payload: Payload;
 }
 export interface MoveAction {
-  type: 'move';
+  type: "move";
   payload: Payload;
   oldPosition: {
     x: number;
