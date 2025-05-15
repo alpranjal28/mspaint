@@ -19,6 +19,7 @@ export class Game {
   private roomId: number;
   selectedTool: Tools;
   private resizeObserver: ResizeObserver;
+  private canvasDrag = { active: false, startX: 0, startY: 0 };
 
   // State
   private current = { scale: 1, x: 0, y: 0 };
@@ -58,8 +59,20 @@ export class Game {
     this.initEvents();
   }
 
-  set tool(tool: Tools) {
+  public setTool(tool: Tools): void {
     this.selectedTool = tool;
+
+    // Update cursor based on selected tool
+    if (tool === Tools.Hand) {
+      this.canvas.style.cursor = "grab";
+    } else if (tool === Tools.Select) {
+      this.canvas.style.cursor = "default";
+    } else if (tool === Tools.Eraser) {
+      this.canvas.style.cursor = "crosshair";
+    } else {
+      this.canvas.style.cursor = "crosshair";
+    }
+
     if (tool !== Tools.Select) {
       this.selection.selectedShape = undefined;
     }
@@ -153,6 +166,15 @@ export class Game {
     this.canvas.addEventListener("wheel", this.onWheel);
   }
 
+  public recenterCanvas() {
+    this.target.x = 0;
+    this.target.y = 0;
+    this.target.scale = 1;
+
+    // Start animation to smoothly transition to centered view
+    this.animate();
+  }
+
   private getMousePos(e: MouseEvent) {
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -169,7 +191,14 @@ export class Game {
   private onMouseDown = (e: MouseEvent) => {
     const pos = this.getMousePos(e);
 
-    if (this.selectedTool === Tools.Eraser) {
+    if (this.selectedTool === Tools.Hand) {
+      this.canvasDrag = {
+        active: true,
+        startX: e.clientX,
+        startY: e.clientY,
+      };
+      this.canvas.style.cursor = "grabbing";
+    } else if (this.selectedTool === Tools.Eraser) {
       const shapeToErase = this.findShapeAtPosition(pos);
       if (shapeToErase) {
         this.eraseShape(shapeToErase);
@@ -212,7 +241,22 @@ export class Game {
   private onMouseMove = (e: MouseEvent) => {
     const pos = this.getMousePos(e);
 
-    if (
+    if (this.selectedTool === Tools.Hand && this.canvasDrag.active) {
+      this.canvas.style.cursor = "grabbing";
+      // Calculate the difference in screen coordinates
+      const dx = e.clientX - this.canvasDrag.startX;
+      const dy = e.clientY - this.canvasDrag.startY;
+
+      // Update the canvas position
+      this.target.x += dx;
+      this.target.y += dy;
+
+      // Update the start position for the next move
+      this.canvasDrag.startX = e.clientX;
+      this.canvasDrag.startY = e.clientY;
+
+      this.animate();
+    } else if (
       this.selectedTool === Tools.Select &&
       this.selection.active &&
       this.selection.selectedShape
@@ -231,6 +275,10 @@ export class Game {
   };
 
   private onMouseUp = () => {
+    if (this.selectedTool === Tools.Hand) {
+      this.canvasDrag.active = false;
+      this.canvas.style.cursor = "grab";
+    }
     if (this.selectedTool === Tools.Select) {
       if (this.selection.isDragging && this.selection.selectedShape) {
         const oldPosition = {
@@ -718,7 +766,10 @@ export class Game {
   }
 
   private animate = () => {
+    // lerp => determines how quickly the current value approaches the target value
     const lerp = (a: number, b: number) => a + (b - a) * 0.15;
+    // Higher values (closer to 1.0) make the movement faster and more responsive but less smooth
+    // Lower values (closer to 0.0) make the movement slower and smoother but less responsive
 
     this.current.scale = lerp(this.current.scale, this.target.scale);
     this.current.x = lerp(this.current.x, this.target.x);
@@ -730,7 +781,14 @@ export class Game {
     const dy = Math.abs(this.current.y - this.target.y);
     const ds = Math.abs(this.current.scale - this.target.scale);
 
-    if (dx > 0.1 || dy > 0.1 || ds > 0.001 || this.drawing.active) {
+    // Continue animation if there's movement, drawing is active, or hand tool is dragging
+    if (
+      dx > 0.1 ||
+      dy > 0.1 ||
+      ds > 0.001 ||
+      this.drawing.active ||
+      this.canvasDrag.active
+    ) {
       this.frame = requestAnimationFrame(this.animate);
     }
   };
@@ -745,7 +803,7 @@ export class Game {
     this.ctx.scale(this.current.scale, this.current.scale);
 
     // Draw existing shapes
-    console.log("tempshapes", this.tempShapes);
+    // console.log("tempshapes", this.tempShapes);
 
     this.tempShapes.forEach((tempShape) => {
       this.ctx.strokeStyle =

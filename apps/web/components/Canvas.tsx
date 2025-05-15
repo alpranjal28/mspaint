@@ -8,15 +8,16 @@ export enum Tools {
   Line = "line",
   Select = "select",
   Eraser = "eraser",
+  Hand = "hand",
 }
 
-function MenuOption({ 
-  children, 
-  onClick, 
-  isActive = false 
-}: { 
-  children: React.ReactNode; 
-  onClick: () => void; 
+function MenuOption({
+  children,
+  onClick,
+  isActive = false,
+}: {
+  children: React.ReactNode;
+  onClick: () => void;
   isActive?: boolean;
 }) {
   return (
@@ -43,7 +44,7 @@ export default function Canvas({
 
   useEffect(() => {
     if (game) {
-      game.selectedTool = selectedTool;
+      game.setTool(selectedTool);
     }
   }, [selectedTool, game]);
 
@@ -60,55 +61,66 @@ export default function Canvas({
       setGame(g);
       return () => g.cleanup();
     }
-  }, [canvasRef.current, roomId, socket, selectedTool]);
+  }, [canvasRef.current, roomId, socket]);
 
   return (
-    <main className="relative flex min-h-screen bg-gray-300">
+    <main className="relative flex min-h-screen">
       <canvas
         height={window.innerHeight}
         ref={canvasRef}
         width={window.innerWidth}
       />
-      
+
       {/* Tool Selection */}
-      <div className={`absolute top-0 left-0 right-0 flex justify-center items-center mt-4 ${isDrawing ? "pointer-events-none" : ""}`}>
+      <div
+        className={`absolute top-0 left-0 right-0 flex justify-center items-center mt-4 ${isDrawing ? "pointer-events-none" : ""}`}
+      >
         <div className="flex justify-center items-center gap-4 p-2 bg-slate-600 transition-all duration-500 select-none rounded-full">
-          <MenuOption 
-            isActive={selectedTool === Tools.Line} 
+          <MenuOption
+            isActive={selectedTool === Tools.Hand}
+            onClick={() => setSelectedTool(Tools.Hand)}
+          >
+            hand
+          </MenuOption>
+          <MenuOption
+            isActive={selectedTool === Tools.Line}
             onClick={() => setSelectedTool(Tools.Line)}
           >
             line
           </MenuOption>
-          <MenuOption 
-            isActive={selectedTool === Tools.Rect} 
+          <MenuOption
+            isActive={selectedTool === Tools.Rect}
             onClick={() => setSelectedTool(Tools.Rect)}
           >
             rect
           </MenuOption>
-          <MenuOption 
-            isActive={selectedTool === Tools.Circle} 
+          <MenuOption
+            isActive={selectedTool === Tools.Circle}
             onClick={() => setSelectedTool(Tools.Circle)}
           >
             circle
           </MenuOption>
-          <MenuOption 
-            isActive={selectedTool === Tools.Select} 
+          <MenuOption
+            isActive={selectedTool === Tools.Select}
             onClick={() => setSelectedTool(Tools.Select)}
           >
             Selection
           </MenuOption>
-          <MenuOption 
-            isActive={selectedTool === Tools.Eraser} 
+          <MenuOption
+            isActive={selectedTool === Tools.Eraser}
             onClick={() => setSelectedTool(Tools.Eraser)}
           >
             eraser
           </MenuOption>
         </div>
       </div>
-      
+
       {/* Quick Actions */}
-      <div className={`absolute bottom-0 right-0 flex justify-center items-center gap-4 p-2 m-4 rounded-full bg-slate-600 transition-all duration-500 select-none ${isDrawing ? "pointer-events-none" : ""}`}>
+      <div
+        className={`absolute bottom-0 right-0 flex justify-center items-center gap-4 p-2 m-4 rounded-full bg-slate-600 transition-all duration-500 select-none ${isDrawing ? "pointer-events-none" : ""}`}
+      >
         <MenuOption onClick={() => game?.undo()}>undo</MenuOption>
+        <MenuOption onClick={() => game?.recenterCanvas()}>recenter</MenuOption>
         <MenuOption onClick={() => game?.redo()}>redo</MenuOption>
       </div>
     </main>
