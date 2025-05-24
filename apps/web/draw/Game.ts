@@ -140,9 +140,11 @@ export class Game {
               (shape) => shape.id !== message.id
             );
           } else if (message.function === "draw") {
-            // Add the shape to tempShapes
-            console.log("drawing new shape:", message);
-            this.tempShapes.push(message);
+            // Add the shape to tempShapes only if it doesn't already exist
+            if (!this.tempShapes.some((shape) => shape.id === message.id)) {
+              console.log("drawing new shape:", message);
+              this.tempShapes.push(message);
+            }
           } else if (message.function === "move") {
             // find the shape and update its position
             const shapeToMove = this.tempShapes.findIndex(
@@ -898,7 +900,7 @@ export class Game {
         tempShape.shape === this.selection.selectedShape?.shape
           ? "blue"
           : "red";
-      if (tempShape.function === "draw") {
+      if (tempShape.function === "draw" || tempShape.function === "move") {
         const { shape } = tempShape;
         if (shape.type === "rect") {
           this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);

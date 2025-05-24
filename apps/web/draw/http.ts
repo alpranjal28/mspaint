@@ -63,7 +63,9 @@ export interface MoveAction {
 }
 export type Action = DrawAction | EraseAction | MoveAction;
 
-export default async function getExistingShapes(roomId: number): Promise<Payload[]> {
+export default async function getExistingShapes(
+  roomId: number
+): Promise<Payload[]> {
   try {
     const res = await axios.get(`${HTTP_BACKEND_URL}/room/${roomId}`, {
       headers: {
@@ -83,11 +85,13 @@ export default async function getExistingShapes(roomId: number): Promise<Payload
         item &&
         typeof item === "object" &&
         item.function &&
-        (item.function === "draw" || item.function === "erase" || item.function === "move") &&
+        (item.function === "draw" ||
+          item.function === "erase" ||
+          item.function === "move") &&
         item.id &&
-        ((item.function === "erase") || 
-         (item.function === "move" && item.oldPosition && item.newPosition) ||
-         (item.shape && item.shape.type))
+        (item.function === "erase" ||
+          (item.function === "move" && item.shape) ||
+          (item.shape && item.shape.type))
       );
     });
 
