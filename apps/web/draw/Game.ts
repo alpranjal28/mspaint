@@ -9,6 +9,8 @@ interface SelectionState {
   isDragging: boolean;
   dragOffsetX: number;
   dragOffsetY: number;
+  isResizing: boolean;
+  resizeHandle: string;
 }
 
 export class Game {
@@ -33,6 +35,8 @@ export class Game {
     isDragging: false,
     dragOffsetX: 0,
     dragOffsetY: 0,
+    isResizing: false,
+    resizeHandle: "",
   };
   private frame = 0;
   private history: Action[] = [];
@@ -78,17 +82,6 @@ export class Game {
       this.selection.selectedShape = undefined;
     }
   }
-
-  private resizeCanvas = (entries: ResizeObserverEntry[]) => {
-    const entry = entries[0];
-    if (!entry) return;
-
-    const { width, height } = entry.contentRect;
-    this.canvas.width = width;
-    this.canvas.height = height;
-
-    this.render();
-  };
 
   private async init() {
     const shapes = await getExistingShapes(this.roomId);
@@ -170,6 +163,161 @@ export class Game {
     document.addEventListener("keydown", this.onKeyDown);
   }
 
+  private resizeCanvas = (entries: ResizeObserverEntry[]) => {
+    const entry = entries[0];
+    if (!entry) return;
+
+    const { width, height } = entry.contentRect;
+    this.canvas.width = width;
+    this.canvas.height = height;
+
+    this.render();
+  };
+
+  private getCursorForHandle(handle: string): string {
+    switch (handle) {
+      case "nw":
+      case "se":
+        return "nwse-resize";
+      case "ne":
+      case "sw":
+        return "nesw-resize";
+      case "n":
+      case "s":
+        return "ns-resize";
+      case "e":
+      case "w":
+        return "ew-resize";
+      default:
+        return "move";
+    }
+  }
+
+  private getResizeHandle(
+    pos: { x: number; y: number },
+    shape: Payload
+  ): string {
+    if (!shape || !shape.shape) return "";
+
+    const handleSize = 8 / this.current.scale; // Adjust handle size based on zoom
+
+    if (shape.shape.type === "rect") {
+      const { x, y, width, height } = shape.shape;
+
+      // Check corners first (they take precedence)
+      if (
+        Math.abs(pos.x - x) <= handleSize &&
+        Math.abs(pos.y - y) <= handleSize
+      )
+        return "nw";
+      if (
+        Math.abs(pos.x - (x + width)) <= handleSize &&
+        Math.abs(pos.y - y) <= handleSize
+      )
+        return "ne";
+      if (
+        Math.abs(pos.x - x) <= handleSize &&
+        Math.abs(pos.y - (y + height)) <= handleSize
+      )
+        return "sw";
+      if (
+        Math.abs(pos.x - (x + width)) <= handleSize &&
+        Math.abs(pos.y - (y + height)) <= handleSize
+      )
+        return "se";
+
+      // Then check edges
+      if (Math.abs(pos.y - y) <= handleSize && pos.x > x && pos.x < x + width)
+        return "n";
+      if (
+        Math.abs(pos.y - (y + height)) <= handleSize &&
+        pos.x > x &&
+        pos.x < x + width
+      )
+        return "s";
+      if (Math.abs(pos.x - x) <= handleSize && pos.y > y && pos.y < y + height)
+        return "w";
+      if (
+        Math.abs(pos.x - (x + width)) <= handleSize &&
+        pos.y > y &&
+        pos.y < y + height
+      )
+        return "e";
+    }
+
+    return "";
+  }
+
+  private resizeShape(
+    payload: Payload,
+    x: number,
+    y: number,
+    handle: string,
+    startX: number,
+    startY: number
+  ): void {
+    if (!payload || !payload.shape) return;
+
+    const { shape } = payload;
+    const dx = x - startX;
+    const dy = y - startY;
+
+    if (shape.type === "rect") {
+      switch (handle) {
+        case "nw":
+          shape.x += dx;
+          shape.y += dy;
+          shape.width -= dx;
+          shape.height -= dy;
+          break;
+        case "ne":
+          shape.y += dy;
+          shape.width += dx;
+          shape.height -= dy;
+          break;
+        case "sw":
+          shape.x += dx;
+          shape.width -= dx;
+          shape.height += dy;
+          break;
+        case "se":
+          shape.width += dx;
+          shape.height += dy;
+          break;
+        case "n":
+          shape.y += dy;
+          shape.height -= dy;
+          break;
+        case "s":
+          shape.height += dy;
+          break;
+        case "w":
+          shape.x += dx;
+          shape.width -= dx;
+          break;
+        case "e":
+          shape.width += dx;
+          break;
+      }
+
+      // Ensure width and height are positive
+      if (shape.width < 0) {
+        shape.x += shape.width;
+        shape.width = Math.abs(shape.width);
+      }
+      if (shape.height < 0) {
+        shape.y += shape.height;
+        shape.height = Math.abs(shape.height);
+      }
+    }
+
+    // Update timestamp
+    payload.timestamp = Date.now();
+    payload.function = "move"; // Mark as a move action
+
+    this.render();
+  }
+
   public recenterCanvas() {
     this.target.x = 0;
     this.target.y = 0;
@@ -210,6 +358,19 @@ export class Game {
     } else if (this.selectedTool === Tools.Select) {
       const selectedShape = this.findShapeAtPosition(pos);
 
+      if (this.selection.selectedShape) {
+        // Check if clicking on a resize handle of the currently selected shape
+        const handle = this.getResizeHandle(pos, this.selection.selectedShape);
+        if (handle) {
+          this.selection.isResizing = true;
+          this.selection.resizeHandle = handle;
+          this.selection.startX = pos.x;
+          this.selection.startY = pos.y;
+          this.canvas.style.cursor = this.getCursorForHandle(handle);
+          return;
+        }
+      }
+
       let dragOffsetX = 0;
       let dragOffsetY = 0;
 
@@ -242,19 +403,9 @@ export class Game {
         selectedShape,
         isDragging: !!selectedShape,
         dragOffsetX,
-        // : selectedShape
-        // ? pos.x -
-        //   (selectedShape.shape.type === "circle"
-        //     ? selectedShape.shape.centerX
-        //     : selectedShape.shape.x)
-        // : 0
         dragOffsetY,
-        // : selectedShape
-        // ? pos.y -
-        //   (selectedShape.shape.type === "circle"
-        //     ? selectedShape.shape.centerY
-        //     : selectedShape.shape.y)
-        // : 0,
+        isResizing: false,
+        resizeHandle: "",
       };
     } else {
       // Start drawing
@@ -297,12 +448,30 @@ export class Game {
       this.selection.active &&
       this.selection.selectedShape
     ) {
-      if (this.selection.isDragging) {
+      if (this.selection.isResizing) {
+        this.resizeShape(
+          this.selection.selectedShape,
+          pos.x,
+          pos.y,
+          this.selection.resizeHandle,
+          this.selection.startX,
+          this.selection.startY
+        );
+        this.selection.startX = pos.x;
+        this.selection.startY = pos.y;
+      } else if (this.selection.isDragging) {
         this.moveShape(
           this.selection.selectedShape,
           pos.x - this.selection.dragOffsetX,
           pos.y - this.selection.dragOffsetY
         );
+      } else {
+        const handle = this.getResizeHandle(pos, this.selection.selectedShape);
+        if (handle) {
+          this.canvas.style.cursor = this.getCursorForHandle(handle);
+        } else {
+          this.canvas.style.cursor = "move";
+        }
       }
     } else if (this.drawing.active) {
       this.drawing.lastX = pos.x;
@@ -320,7 +489,23 @@ export class Game {
       this.canvas.style.cursor = "grab";
     }
     if (this.selectedTool === Tools.Select) {
-      if (this.selection.isDragging && this.selection.selectedShape) {
+      if (this.selection.isResizing && this.selection.selectedShape) {
+        // Add to history and broadcast the resize
+        // Similar to your existing move code
+        this.addToHistory({
+          type: "move",
+          payload: this.selection.selectedShape,
+          oldPosition: { x: 0, y: 0 }, // You'll need to track the original dimensions
+          newPosition: { x: 0, y: 0 },
+        });
+        this.socket.send(
+          JSON.stringify({
+            type: "chat",
+            roomId: this.roomId,
+            message: JSON.stringify(this.selection.selectedShape),
+          })
+        );
+      } else if (this.selection.isDragging && this.selection.selectedShape) {
         let oldPosition = { x: 0, y: 0 };
 
         // Get the old position based on shape type
@@ -355,6 +540,7 @@ export class Game {
         );
       }
       this.selection.isDragging = false;
+      this.selection.isResizing = false;
     } else if (this.drawing.active) {
       this.drawing.active = false;
       this.onStopDrawing();
