@@ -39,6 +39,7 @@ export class Game {
     isResizing: false,
     resizeHandle: "",
   };
+  private lastSelectedShapeIndex: number = -1;
   private frame = 0;
   private history: Action[] = [];
   private redoStack: Action[] = [];
@@ -578,18 +579,39 @@ export class Game {
     }
   };
 
+  // Add this property to the Game class
+
   private findShapeAtPosition(pos: {
     x: number;
     y: number;
   }): Payload | undefined {
+    // Find all shapes at this position
+    const shapesAtPosition: Payload[] = [];
+
     for (let i = this.tempShapes.length - 1; i >= 0; i--) {
       const shape = this.tempShapes[i];
       if (!shape || !shape.shape) continue;
       if (this.isPointInShape(pos, shape)) {
-        return shape;
+        shapesAtPosition.push(shape);
       }
     }
-    return undefined;
+
+    if (shapesAtPosition.length === 0) {
+      this.lastSelectedShapeIndex = -1;
+      return undefined;
+    }
+
+    // If we have a previously selected shape, find its index
+    const currentIndex =
+      this.lastSelectedShapeIndex >= 0 &&
+      this.lastSelectedShapeIndex < shapesAtPosition.length
+        ? this.lastSelectedShapeIndex
+        : -1;
+
+    // Select the next shape in the list (or the first if none was selected)
+    this.lastSelectedShapeIndex = (currentIndex + 1) % shapesAtPosition.length;
+
+    return shapesAtPosition[this.lastSelectedShapeIndex];
   }
 
   private isPointInShape(
