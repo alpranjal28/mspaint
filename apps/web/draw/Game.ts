@@ -165,6 +165,7 @@ export class Game {
     this.canvas.addEventListener("mousemove", this.onMouseMove);
     this.canvas.addEventListener("mouseup", this.onMouseUp);
     this.canvas.addEventListener("wheel", this.onWheel);
+    document.addEventListener("keydown", this.onKeyDown);
   }
 
   public recenterCanvas() {
@@ -392,7 +393,7 @@ export class Game {
   }): Payload | undefined {
     for (let i = this.tempShapes.length - 1; i >= 0; i--) {
       const shape = this.tempShapes[i];
-      if (!shape || !shape.shape) return;
+      if (!shape || !shape.shape) continue;
       if (this.isPointInShape(pos, shape)) {
         return shape;
       }
@@ -983,6 +984,6 @@ export class Game {
     this.canvas.removeEventListener("mousemove", this.onMouseMove);
     this.canvas.removeEventListener("mouseup", this.onMouseUp);
     this.canvas.removeEventListener("wheel", this.onWheel);
-    this.canvas.removeEventListener("keydown", this.onKeyDown);
+    document.removeEventListener("keydown", this.onKeyDown);
   }
 }

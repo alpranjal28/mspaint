@@ -63,7 +63,7 @@ export interface MoveAction {
 }
 export type Action = DrawAction | EraseAction | MoveAction;
 
-export default async function getExistingShapes(roomId: number) {
+export default async function getExistingShapes(roomId: number): Promise<Payload[]> {
   try {
     const res = await axios.get(`${HTTP_BACKEND_URL}/room/${roomId}`, {
       headers: {
@@ -83,15 +83,18 @@ export default async function getExistingShapes(roomId: number) {
         item &&
         typeof item === "object" &&
         item.function &&
-        (item.function === "draw" || item.function === "erase") &&
+        (item.function === "draw" || item.function === "erase" || item.function === "move") &&
         item.id &&
-        (item.function === "erase" || (item.shape && item.shape.type))
+        ((item.function === "erase") || 
+         (item.function === "move" && item.oldPosition && item.newPosition) ||
+         (item.shape && item.shape.type))
       );
     });
 
     console.log("valid Payloads from server", validPayloads);
     return validPayloads as Payload[];
   } catch (error) {
-    console.log(error);
+    console.error("Error fetching shapes:", error);
+    return [];
   }
 }
