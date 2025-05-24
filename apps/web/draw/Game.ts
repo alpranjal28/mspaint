@@ -1,3 +1,4 @@
+import { on } from "events";
 import { Tools } from "../components/Canvas";
 import getExistingShapes, { Payload, Shapes, Action } from "./http";
 
@@ -49,7 +50,9 @@ export class Game {
     socket: WebSocket,
     selectedTool: Tools,
     private onStartDrawing: () => void,
-    private onStopDrawing: () => void
+    private onStopDrawing: () => void,
+    private onStartDragging: () => void,
+    private onStopDragging: () => void
   ) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
@@ -350,6 +353,7 @@ export class Game {
         startY: e.clientY,
       };
       this.canvas.style.cursor = "grabbing";
+      this.onStartDragging();
     } else if (this.selectedTool === Tools.Eraser) {
       const shapeToErase = this.findShapeAtPosition(pos);
       if (shapeToErase) {
@@ -487,15 +491,14 @@ export class Game {
     if (this.selectedTool === Tools.Hand) {
       this.canvasDrag.active = false;
       this.canvas.style.cursor = "grab";
+      this.onStopDragging();
     }
     if (this.selectedTool === Tools.Select) {
       if (this.selection.isResizing && this.selection.selectedShape) {
-        // Add to history and broadcast the resize
-        // Similar to your existing move code
         this.addToHistory({
           type: "move",
           payload: this.selection.selectedShape,
-          oldPosition: { x: 0, y: 0 }, // You'll need to track the original dimensions
+          oldPosition: { x: 0, y: 0 }, // track the original dimensions
           newPosition: { x: 0, y: 0 },
         });
         this.socket.send(

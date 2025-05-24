@@ -38,9 +38,10 @@ export default function Canvas({
   socket: WebSocket;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [selectedTool, setSelectedTool] = useState<Tools>(Tools.Circle);
+  const [selectedTool, setSelectedTool] = useState<Tools>(Tools.Hand);
   const [game, setGame] = useState<Game>();
   const [isDrawing, setIsDrawing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   useEffect(() => {
     if (game) {
@@ -56,7 +57,9 @@ export default function Canvas({
         socket,
         selectedTool,
         () => setIsDrawing(true),
-        () => setIsDrawing(false)
+        () => setIsDrawing(false),
+        () => setIsDragging(true),
+        () => setIsDragging(false)
       );
       setGame(g);
       return () => g.cleanup();
@@ -73,7 +76,7 @@ export default function Canvas({
 
       {/* Tool Selection */}
       <div
-        className={`fixed top-0 left-0 right-0 flex justify-center items-center mt-4 ${isDrawing ? "pointer-events-none" : ""}`}
+        className={`fixed top-0 left-0 right-0 flex justify-center items-center mt-4 ${isDrawing || isDragging ? "pointer-events-none" : ""}`}
       >
         <div className="flex justify-center items-center gap-4 p-2 bg-slate-600 transition-all duration-500 select-none rounded-full">
           <MenuOption
@@ -123,7 +126,7 @@ export default function Canvas({
 
       {/* Quick Actions */}
       <div
-        className={`fixed bottom-0 right-0 flex justify-center items-center gap-4 p-2 m-4 rounded-full bg-slate-600 transition-all duration-500 select-none ${isDrawing ? "pointer-events-none" : ""}`}
+        className={`fixed bottom-0 right-0 flex justify-center items-center gap-4 p-2 m-4 rounded-full bg-slate-600 transition-all duration-500 select-none ${isDrawing || isDragging ? "pointer-events-none" : ""}`}
       >
         <MenuOption onClick={() => game?.undo()}>undo</MenuOption>
         <MenuOption onClick={() => game?.recenterCanvas()}>recenter</MenuOption>
