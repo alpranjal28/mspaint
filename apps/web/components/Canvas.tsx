@@ -22,7 +22,7 @@ function MenuOption({
 }) {
   return (
     <div
-      className={`border-2 border-black py-1 px-2 bg-red-300 rounded-full cursor-pointer hover:bg-red-500 transition-colors ${isActive ? "bg-red-400" : ""}`}
+      className={`text-white py-1 px-2 rounded-lg cursor-pointer  transition-colors ${isActive ? "bg-slate-900" : "hover:bg-slate-700"}`}
       onClick={onClick}
     >
       {children}
@@ -67,7 +67,7 @@ export default function Canvas({
   }, [canvasRef.current, roomId, socket]);
 
   return (
-    <main className="relative flex min-h-screen">
+    <main className="relative flex min-h-screen bg-gray-950">
       <canvas
         height={window.innerHeight}
         ref={canvasRef}
@@ -78,7 +78,7 @@ export default function Canvas({
       <div
         className={`fixed top-0 left-0 right-0 flex justify-center items-center mt-4 ${isDrawing || isDragging ? "pointer-events-none" : ""}`}
       >
-        <div className="flex justify-center items-center gap-4 p-2 bg-slate-600 transition-all duration-500 select-none rounded-full">
+        <div className="flex justify-center items-center gap-1 p-1 bg-gray-800 transition-all duration-500 select-none rounded-lg">
           <MenuOption
             isActive={selectedTool === Tools.Hand}
             onClick={() => setSelectedTool(Tools.Hand)}
@@ -126,7 +126,7 @@ export default function Canvas({
 
       {/* Quick Actions */}
       <div
-        className={`fixed bottom-0 right-0 flex justify-center items-center gap-4 p-2 m-4 rounded-full bg-slate-600 transition-all duration-500 select-none ${isDrawing || isDragging ? "pointer-events-none" : ""}`}
+        className={`fixed bottom-0 right-0 flex justify-center items-center gap-1 p-1 m-4 rounded-lg bg-gray-800 transition-all duration-500 select-none ${isDrawing || isDragging ? "pointer-events-none" : ""}`}
       >
         <MenuOption onClick={() => game?.undo()}>undo</MenuOption>
         <MenuOption onClick={() => game?.recenterCanvas()}>recenter</MenuOption>

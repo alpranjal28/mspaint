@@ -1110,7 +1110,7 @@ export class Game {
       this.ctx.strokeStyle =
         tempShape.shape === this.selection.selectedShape?.shape
           ? "blue"
-          : "red";
+          : "white";
       if (tempShape.function === "draw" || tempShape.function === "move") {
         const { shape } = tempShape;
         if (shape.type === "rect") {
@@ -1144,7 +1144,7 @@ export class Game {
 
     // Draw current shape
     if (this.drawing.active) {
-      this.ctx.strokeStyle = "red";
+      this.ctx.strokeStyle = "white";
       const shape = this.createShape();
       if (shape?.type === "rect") {
         this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
