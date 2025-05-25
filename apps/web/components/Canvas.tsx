@@ -86,6 +86,13 @@ export default function Canvas({
             hand
           </MenuOption>
           <MenuOption
+            isActive={selectedTool === Tools.Select}
+            onClick={() => setSelectedTool(Tools.Select)}
+          >
+            Selection
+          </MenuOption>
+          |
+          <MenuOption
             isActive={selectedTool === Tools.Line}
             onClick={() => setSelectedTool(Tools.Line)}
           >
@@ -108,12 +115,6 @@ export default function Canvas({
             onClick={() => setSelectedTool(Tools.Circle)}
           >
             circle
-          </MenuOption>
-          <MenuOption
-            isActive={selectedTool === Tools.Select}
-            onClick={() => setSelectedTool(Tools.Select)}
-          >
-            Selection
           </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Eraser}
