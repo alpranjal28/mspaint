@@ -1107,6 +1107,7 @@ export class Game {
     // console.log("tempshapes", this.tempShapes);
 
     this.tempShapes.forEach((tempShape) => {
+      this.ctx.lineWidth = 1.5
       this.ctx.strokeStyle =
         tempShape.shape === this.selection.selectedShape?.shape
           ? "blue"

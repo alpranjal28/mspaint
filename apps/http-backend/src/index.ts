@@ -133,17 +133,24 @@ app.post("/room", middleware, async (req, res) => {
     });
   } catch (error) {
     console.log("error => ", error);
+    res.status(400).json({ message: "Room already exists" });
+    return;
   }
 });
 
 app.get("/room/:roomId", middleware, async (req, res) => {
-  const room = Number(req.params.roomId);
-  console.log("get messages from roomId -> ", room);
+  const roomId = Number(req.params.roomId);
+  if (isNaN(Number(roomId))) {
+    res.status(400).json({ message: "Invalid room ID" });
+    return;
+  }
+
+  console.log("get messages from roomId -> ", roomId);
 
   // get messages from room
   const messages = await prismaClient.chat.findMany({
     where: {
-      roomId: room,
+      roomId: roomId,
     },
     orderBy: {
       createdAt: "desc",
