@@ -525,7 +525,7 @@ export class Game {
         
       case Tools.Text:
         // Do nothing on mouse up for text tool
-        // The text area is already created in onMouseDown
+        // text finalization in onMouseDown at next click
         break;
 
       case Tools.Select:
@@ -1250,7 +1250,10 @@ export class Game {
             }
             break;
           case "text":
+            this.ctx.fillStyle = "white";
             this.ctx.font = "20px sans-serif";
+            this.ctx.textBaseline = "top";
+            this.ctx.textAlign = "left";
             this.ctx.fillText(shape.text, shape.x, shape.y);
         }
       }
@@ -1268,13 +1271,15 @@ export class Game {
       this.ctx.textAlign = "left";
       this.ctx.fillText(text, x, y);
       
-      // Draw cursor
-      if (text.length > 0) {
+      // Draw blinking cursor
+      const now = Date.now();
+      if (Math.floor(now / 500) % 2 === 0) {
         const textWidth = this.ctx.measureText(text).width;
         this.ctx.fillRect(x + textWidth, y, 1, 20);
-      } else {
-        this.ctx.fillRect(x, y, 1, 20);
       }
+      
+      // Request animation frame to keep cursor blinking
+      requestAnimationFrame(this.animate);
     }
   }
 
@@ -1363,7 +1368,7 @@ export class Game {
   private finalizeTextInput(): void {
     if (!this.textArea) return;
     
-    const text = this.textArea.value.trim();
+    const text = this.textArea.value;
     if (text) {
       const x = parseFloat(this.textArea.dataset.x || "0");
       const y = parseFloat(this.textArea.dataset.y || "0");
