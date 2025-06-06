@@ -27,6 +27,7 @@ export class Game {
   // State
   private current = { scale: 1, x: 0, y: 0 };
   private target = { scale: 1, x: 0, y: 0 };
+  private interacting = false;
   private drawing = { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 };
   private pencilPoints: { x: number; y: number }[] = [];
   private selection: SelectionState = {
@@ -50,10 +51,8 @@ export class Game {
     roomId: number,
     socket: WebSocket,
     selectedTool: Tools,
-    private onStartDrawing: () => void,
-    private onStopDrawing: () => void,
-    private onStartDragging: () => void,
-    private onStopDragging: () => void
+    private startInteracting: () => void,
+    private onStopInteracting: () => void,
   ) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
@@ -355,7 +354,7 @@ export class Game {
           startY: e.clientY,
         };
         this.canvas.style.cursor = "grabbing";
-        this.onStartDragging();
+        this.startInteracting();
         break;
 
       case Tools.Eraser:
@@ -434,7 +433,7 @@ export class Game {
         if (this.selectedTool === Tools.Pencil) {
           this.pencilPoints = [{ x: pos.x, y: pos.y }];
         }
-        this.onStartDrawing();
+        this.startInteracting();
         break;
     }
 
@@ -504,7 +503,7 @@ export class Game {
       case Tools.Hand:
         this.canvasDrag.active = false;
         this.canvas.style.cursor = "grab";
-        this.onStopDragging();
+        this.onStopInteracting();
         break;
 
       case Tools.Select:
@@ -566,7 +565,7 @@ export class Game {
       default:
         if (this.drawing.active) {
           this.drawing.active = false;
-          this.onStopDrawing();
+          this.onStopInteracting();
 
           // create shape and add to tempShapes
           const shape = this.createShape();
