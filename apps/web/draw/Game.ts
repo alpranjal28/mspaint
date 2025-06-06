@@ -1,4 +1,3 @@
-import { on } from "events";
 import { Tools } from "../components/Canvas";
 import getExistingShapes, { Payload, Shapes, Action } from "./http";
 
@@ -23,11 +22,11 @@ export class Game {
   selectedTool: Tools;
   private resizeObserver: ResizeObserver;
   private canvasDrag = { active: false, startX: 0, startY: 0 };
+  private textArea: HTMLTextAreaElement | null = null;
 
   // State
   private current = { scale: 1, x: 0, y: 0 };
   private target = { scale: 1, x: 0, y: 0 };
-  private interacting = false;
   private drawing = { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 };
   private pencilPoints: { x: number; y: number }[] = [];
   private selection: SelectionState = {
@@ -70,12 +69,19 @@ export class Game {
   public setTool(tool: Tools): void {
     this.selectedTool = tool;
 
+    // Remove any active text area when changing tools
+    if (this.textArea && tool !== Tools.Text) {
+      this.removeTextArea();
+    }
+
     // Update cursor based on selected tool
     if (tool === Tools.Hand) {
       this.canvas.style.cursor = "grab";
     } else if (tool === Tools.Select) {
       this.canvas.style.cursor = "default";
     } else if (tool === Tools.Eraser) {
+      this.canvas.style.cursor = "crosshair";
+    } else if (tool === Tools.Text) {
       this.canvas.style.cursor = "crosshair";
     } else {
       this.canvas.style.cursor = "crosshair";
@@ -346,6 +352,12 @@ export class Game {
   private onMouseDown = (e: MouseEvent) => {
     const pos = this.getMousePos(e);
 
+    // If text tool is active and already have a textarea, finalize the current text
+    if (this.selectedTool === Tools.Text && this.textArea) {
+      this.finalizeTextInput();
+      return;
+    }
+
     switch (this.selectedTool) {
       case Tools.Hand:
         this.canvasDrag = {
@@ -362,6 +374,11 @@ export class Game {
         if (shapeToErase) {
           this.eraseShape(shapeToErase);
         }
+        break;
+        
+      case Tools.Text:
+        this.createTextArea(pos.x, pos.y);
+        this.startInteracting();
         break;
 
       case Tools.Select:
@@ -505,6 +522,11 @@ export class Game {
         this.canvas.style.cursor = "grab";
         this.onStopInteracting();
         break;
+        
+      case Tools.Text:
+        // Do nothing on mouse up for text tool
+        // The text area is already created in onMouseDown
+        break;
 
       case Tools.Select:
         if (this.selection.isResizing && this.selection.selectedShape) {
@@ -558,9 +580,6 @@ export class Game {
         this.selection.isDragging = false;
         this.selection.isResizing = false;
         break;
-
-      // case Tools.Text:
-      //   break;
 
       default:
         if (this.drawing.active) {
@@ -1095,7 +1114,7 @@ export class Game {
           type: "text",
           x: startX,
           y: startY,
-          text: "Sample Text", // Placeholder text, can be replaced with user input
+          text: this.textArea?.value || "Sample Text",
         };
     }
     return null;
@@ -1236,6 +1255,27 @@ export class Game {
         }
       }
     }
+    
+    // Draw current text input if active
+    if (this.textArea && this.selectedTool === Tools.Text) {
+      const x = parseFloat(this.textArea.dataset.x || "0");
+      const y = parseFloat(this.textArea.dataset.y || "0");
+      const text = this.textArea.value || "";
+      
+      this.ctx.fillStyle = "white";
+      this.ctx.font = "20px sans-serif";
+      this.ctx.textBaseline = "top";
+      this.ctx.textAlign = "left";
+      this.ctx.fillText(text, x, y);
+      
+      // Draw cursor
+      if (text.length > 0) {
+        const textWidth = this.ctx.measureText(text).width;
+        this.ctx.fillRect(x + textWidth, y, 1, 20);
+      } else {
+        this.ctx.fillRect(x, y, 1, 20);
+      }
+    }
   }
 
   private onKeyDown = (e: KeyboardEvent) => {
@@ -1255,6 +1295,127 @@ export class Game {
     }
   };
 
+  private createTextArea(x: number, y: number): void {
+    // Remove any existing textarea
+    this.removeTextArea();
+    
+    // Create a new textarea
+    this.textArea = document.createElement("textarea");
+    this.textArea.style.position = "fixed";
+    
+    // Calculate position in screen coordinates
+    const rect = this.canvas.getBoundingClientRect();
+    const screenX = x * this.current.scale + this.current.x + rect.left;
+    const screenY = y * this.current.scale + this.current.y + rect.top;
+    
+    // Set textarea styles - make it invisible
+    this.textArea.style.left = `${screenX}px`;
+    this.textArea.style.top = `${screenY}px`;
+    this.textArea.style.opacity = "0";
+    this.textArea.style.pointerEvents = "auto";
+    this.textArea.style.width = "1px";
+    this.textArea.style.height = "1px";
+    this.textArea.style.zIndex = "9999";
+    
+    // Store the world coordinates for later use
+    this.textArea.dataset.x = x.toString();
+    this.textArea.dataset.y = y.toString();
+    
+    // Add event listeners
+    this.textArea.addEventListener("blur", this.handleTextAreaBlur);
+    this.textArea.addEventListener("keydown", this.handleTextAreaKeyDown);
+    this.textArea.addEventListener("input", this.handleTextAreaInput);
+    
+    // Add to DOM and focus
+    document.body.appendChild(this.textArea);
+    setTimeout(() => this.textArea?.focus(), 0);
+  }
+  
+  private handleTextAreaBlur = (): void => {
+    // Don't finalize on blur - we'll handle this in onMouseDown
+    // This prevents issues with text disappearing when clicking elsewhere
+  }
+  
+  private handleTextAreaKeyDown = (e: KeyboardEvent): void => {
+    // Submit on Enter (without shift)
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      this.finalizeTextInput();
+    }
+    
+    // Cancel on Escape
+    if (e.key === "Escape") {
+      e.preventDefault();
+      this.removeTextArea();
+      this.onStopInteracting();
+    }
+    
+    // Stop propagation to prevent canvas shortcuts
+    e.stopPropagation();
+  }
+  
+  private handleTextAreaInput = (): void => {
+    if (this.textArea) {
+      this.render();
+    }
+  }
+  
+  private finalizeTextInput(): void {
+    if (!this.textArea) return;
+    
+    const text = this.textArea.value.trim();
+    if (text) {
+      const x = parseFloat(this.textArea.dataset.x || "0");
+      const y = parseFloat(this.textArea.dataset.y || "0");
+      
+      // Create text shape
+      const shape: Shapes = {
+        type: "text",
+        x,
+        y,
+        text
+      };
+      
+      // Add to shapes
+      const id = `${Math.random() * 11}`;
+      const payload: Payload = {
+        function: "draw",
+        shape,
+        id,
+        timestamp: Date.now(),
+      };
+      
+      this.addToHistory({
+        type: "draw",
+        payload,
+      });
+      
+      this.socket.send(
+        JSON.stringify({
+          type: "chat",
+          roomId: this.roomId,
+          message: JSON.stringify(payload),
+        })
+      );
+      
+      this.tempShapes.push(payload);
+      this.render();
+    }
+    
+    this.removeTextArea();
+    this.onStopInteracting();
+  }
+  
+  private removeTextArea(): void {
+    if (this.textArea) {
+      this.textArea.removeEventListener("blur", this.handleTextAreaBlur);
+      this.textArea.removeEventListener("keydown", this.handleTextAreaKeyDown);
+      this.textArea.removeEventListener("input", this.handleTextAreaInput);
+      document.body.removeChild(this.textArea);
+      this.textArea = null;
+    }
+  }
+
   cleanup() {
     cancelAnimationFrame(this.frame);
     this.canvas.removeEventListener("mousedown", this.onMouseDown);
@@ -1262,5 +1423,6 @@ export class Game {
     this.canvas.removeEventListener("mouseup", this.onMouseUp);
     this.canvas.removeEventListener("wheel", this.onWheel);
     document.removeEventListener("keydown", this.onKeyDown);
+    this.removeTextArea();
   }
 }
