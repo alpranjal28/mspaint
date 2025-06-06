@@ -347,86 +347,97 @@ export class Game {
   private onMouseDown = (e: MouseEvent) => {
     const pos = this.getMousePos(e);
 
-    if (this.selectedTool === Tools.Hand) {
-      this.canvasDrag = {
-        active: true,
-        startX: e.clientX,
-        startY: e.clientY,
-      };
-      this.canvas.style.cursor = "grabbing";
-      this.onStartDragging();
-    } else if (this.selectedTool === Tools.Eraser) {
-      const shapeToErase = this.findShapeAtPosition(pos);
-      if (shapeToErase) {
-        this.eraseShape(shapeToErase);
-      }
-    } else if (this.selectedTool === Tools.Select) {
-      const selectedShape = this.findShapeAtPosition(pos);
+    switch (this.selectedTool) {
+      case Tools.Hand:
+        this.canvasDrag = {
+          active: true,
+          startX: e.clientX,
+          startY: e.clientY,
+        };
+        this.canvas.style.cursor = "grabbing";
+        this.onStartDragging();
+        break;
 
-      if (this.selection.selectedShape) {
-        // Check if clicking on a resize handle of the currently selected shape
-        const handle = this.getResizeHandle(pos, this.selection.selectedShape);
-        if (handle) {
-          this.selection.isResizing = true;
-          this.selection.resizeHandle = handle;
-          this.selection.startX = pos.x;
-          this.selection.startY = pos.y;
-          this.canvas.style.cursor = this.getCursorForHandle(handle);
-          return;
+      case Tools.Eraser:
+        const shapeToErase = this.findShapeAtPosition(pos);
+        if (shapeToErase) {
+          this.eraseShape(shapeToErase);
         }
-      }
+        break;
 
-      let dragOffsetX = 0;
-      let dragOffsetY = 0;
+      case Tools.Select:
+        const selectedShape = this.findShapeAtPosition(pos);
 
-      if (selectedShape) {
-        // Calculate drag offsets based on shape type
-        if (selectedShape.shape.type === "circle") {
-          dragOffsetX = pos.x - selectedShape.shape.centerX;
-          dragOffsetY = pos.y - selectedShape.shape.centerY;
-        } else if (
-          selectedShape.shape.type === "rect" ||
-          selectedShape.shape.type === "line"
-        ) {
-          dragOffsetX = pos.x - selectedShape.shape.x;
-          dragOffsetY = pos.y - selectedShape.shape.y;
-        } else if (
-          selectedShape.shape.type === "pencil" &&
-          selectedShape.shape.points &&
-          selectedShape.shape.points.length > 0
-        ) {
-          // For pencil, use the first point as reference
-          dragOffsetX = pos.x - selectedShape.shape.points[0]!.x;
-          dragOffsetY = pos.y - selectedShape.shape.points[0]!.y;
+        if (this.selection.selectedShape) {
+          // Check if clicking on a resize handle of the currently selected shape
+          const handle = this.getResizeHandle(
+            pos,
+            this.selection.selectedShape
+          );
+          if (handle) {
+            this.selection.isResizing = true;
+            this.selection.resizeHandle = handle;
+            this.selection.startX = pos.x;
+            this.selection.startY = pos.y;
+            this.canvas.style.cursor = this.getCursorForHandle(handle);
+            return;
+          }
         }
-      }
-      this.canvas.style.cursor = "move";
-      this.selection = {
-        active: true,
-        startX: pos.x,
-        startY: pos.y,
-        selectedShape,
-        isDragging: !!selectedShape,
-        dragOffsetX,
-        dragOffsetY,
-        isResizing: false,
-        resizeHandle: "",
-      };
-    } else {
-      // Start drawing
-      // this.canvas.style.cursor = "crosshair";
-      this.drawing = {
-        active: true,
-        startX: pos.x,
-        startY: pos.y,
-        lastX: pos.x,
-        lastY: pos.y,
-      };
-      if (this.selectedTool === Tools.Pencil) {
-        this.pencilPoints = [{ x: pos.x, y: pos.y }];
-      }
-      this.onStartDrawing();
+
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        if (selectedShape) {
+          // Calculate drag offsets based on shape type
+          if (selectedShape.shape.type === "circle") {
+            dragOffsetX = pos.x - selectedShape.shape.centerX;
+            dragOffsetY = pos.y - selectedShape.shape.centerY;
+          } else if (
+            selectedShape.shape.type === "rect" ||
+            selectedShape.shape.type === "line"
+          ) {
+            dragOffsetX = pos.x - selectedShape.shape.x;
+            dragOffsetY = pos.y - selectedShape.shape.y;
+          } else if (
+            selectedShape.shape.type === "pencil" &&
+            selectedShape.shape.points &&
+            selectedShape.shape.points.length > 0
+          ) {
+            // For pencil, use the first point as reference
+            dragOffsetX = pos.x - selectedShape.shape.points[0]!.x;
+            dragOffsetY = pos.y - selectedShape.shape.points[0]!.y;
+          }
+        }
+        this.canvas.style.cursor = "move";
+        this.selection = {
+          active: true,
+          startX: pos.x,
+          startY: pos.y,
+          selectedShape,
+          isDragging: !!selectedShape,
+          dragOffsetX,
+          dragOffsetY,
+          isResizing: false,
+          resizeHandle: "",
+        };
+        break;
+
+      default:
+        // Start drawing
+        this.drawing = {
+          active: true,
+          startX: pos.x,
+          startY: pos.y,
+          lastX: pos.x,
+          lastY: pos.y,
+        };
+        if (this.selectedTool === Tools.Pencil) {
+          this.pencilPoints = [{ x: pos.x, y: pos.y }];
+        }
+        this.onStartDrawing();
+        break;
     }
+
     this.animate();
   };
 
@@ -489,93 +500,101 @@ export class Game {
   };
 
   private onMouseUp = () => {
-    if (this.selectedTool === Tools.Hand) {
-      this.canvasDrag.active = false;
-      this.canvas.style.cursor = "grab";
-      this.onStopDragging();
-    }
-    if (this.selectedTool === Tools.Select) {
-      if (this.selection.isResizing && this.selection.selectedShape) {
-        this.addToHistory({
-          type: "move",
-          payload: this.selection.selectedShape,
-          oldPosition: { x: 0, y: 0 }, // track the original dimensions
-          newPosition: { x: 0, y: 0 },
-        });
-        this.socket.send(
-          JSON.stringify({
-            type: "chat",
-            roomId: this.roomId,
-            message: JSON.stringify(this.selection.selectedShape),
-          })
-        );
-      } else if (this.selection.isDragging && this.selection.selectedShape) {
-        let oldPosition = { x: 0, y: 0 };
+    switch (this.selectedTool) {
+      case Tools.Hand:
+        this.canvasDrag.active = false;
+        this.canvas.style.cursor = "grab";
+        this.onStopDragging();
+        break;
 
-        // Get the old position based on shape type
-        const shape = this.selection.selectedShape.shape;
-        if (shape.type === "circle") {
-          oldPosition = { x: shape.centerX, y: shape.centerY };
-        } else if (shape.type === "rect" || shape.type === "line") {
-          oldPosition = { x: shape.x, y: shape.y };
-        } else if (
-          shape.type === "pencil" &&
-          shape.points &&
-          shape.points.length > 0
-        ) {
-          oldPosition = { x: shape.points[0]!.x, y: shape.points[0]!.y };
+      case Tools.Select:
+        if (this.selection.isResizing && this.selection.selectedShape) {
+          this.addToHistory({
+            type: "move",
+            payload: this.selection.selectedShape,
+            oldPosition: { x: 0, y: 0 }, // track the original dimensions
+            newPosition: { x: 0, y: 0 },
+          });
+          this.socket.send(
+            JSON.stringify({
+              type: "chat",
+              roomId: this.roomId,
+              message: JSON.stringify(this.selection.selectedShape),
+            })
+          );
+        } else if (this.selection.isDragging && this.selection.selectedShape) {
+          let oldPosition = { x: 0, y: 0 };
+
+          // Get the old position based on shape type
+          const shape = this.selection.selectedShape.shape;
+          if (shape.type === "circle") {
+            oldPosition = { x: shape.centerX, y: shape.centerY };
+          } else if (shape.type === "rect" || shape.type === "line") {
+            oldPosition = { x: shape.x, y: shape.y };
+          } else if (
+            shape.type === "pencil" &&
+            shape.points &&
+            shape.points.length > 0
+          ) {
+            oldPosition = { x: shape.points[0]!.x, y: shape.points[0]!.y };
+          }
+          const newPosition = {
+            x: oldPosition.x + (this.selection.dragOffsetX || 0),
+            y: oldPosition.y + (this.selection.dragOffsetY || 0),
+          };
+          this.addToHistory({
+            type: "move",
+            payload: this.selection.selectedShape,
+            oldPosition,
+            newPosition,
+          });
+          this.socket.send(
+            JSON.stringify({
+              type: "chat",
+              roomId: this.roomId,
+              message: JSON.stringify(this.selection.selectedShape),
+            })
+          );
         }
-        const newPosition = {
-          x: oldPosition.x + (this.selection.dragOffsetX || 0),
-          y: oldPosition.y + (this.selection.dragOffsetY || 0),
-        };
-        this.addToHistory({
-          type: "move",
-          payload: this.selection.selectedShape,
-          oldPosition,
-          newPosition,
-        });
-        this.socket.send(
-          JSON.stringify({
-            type: "chat",
-            roomId: this.roomId,
-            message: JSON.stringify(this.selection.selectedShape),
-          })
-        );
-      }
-      this.selection.isDragging = false;
-      this.selection.isResizing = false;
-    } else if (this.drawing.active) {
-      this.drawing.active = false;
-      this.onStopDrawing();
+        this.selection.isDragging = false;
+        this.selection.isResizing = false;
+        break;
 
-      // create shape and add to tempShapes
-      const shape = this.createShape();
-      if (shape) {
-        const id = `${Math.random() * 11}`;
-        const payload: Payload = {
-          function: "draw",
-          shape: shape,
-          id,
-          timestamp: Date.now(),
-        };
-        console.log(payload);
+      // case Tools.Text:
+      //   break;
 
-        this.addToHistory({
-          type: "draw",
-          payload,
-        });
+      default:
+        if (this.drawing.active) {
+          this.drawing.active = false;
+          this.onStopDrawing();
 
-        this.socket.send(
-          JSON.stringify({
-            type: "chat",
-            roomId: this.roomId,
-            message: JSON.stringify(payload),
-          })
-        );
-        this.tempShapes.push(payload);
-        console.log("sent to db ", payload);
-      }
+          // create shape and add to tempShapes
+          const shape = this.createShape();
+          if (shape) {
+            const id = `${Math.random() * 11}`;
+            const payload: Payload = {
+              function: "draw",
+              shape: shape,
+              id,
+              timestamp: Date.now(),
+            };
+
+            this.addToHistory({
+              type: "draw",
+              payload,
+            });
+
+            this.socket.send(
+              JSON.stringify({
+                type: "chat",
+                roomId: this.roomId,
+                message: JSON.stringify(payload),
+              })
+            );
+            this.tempShapes.push(payload);
+          }
+        }
+        break;
     }
   };
 
@@ -688,6 +707,16 @@ export class Game {
           }
         }
         return false;
+      }
+      case "text": {
+        // For text, check if the point is within the bounding box of the text
+        const textWidth = this.ctx.measureText(shape.text).width;
+        return (
+          point.x >= shape.x &&
+          point.x <= shape.x + textWidth &&
+          point.y >= shape.y - 20 && // Assuming a height of 20px for the text
+          point.y <= shape.y
+        );
       }
     }
   }
@@ -1062,6 +1091,13 @@ export class Game {
           type: "pencil",
           points: this.pencilPoints,
         };
+      case Tools.Text:
+        return {
+          type: "text",
+          x: startX,
+          y: startY,
+          text: "Sample Text", // Placeholder text, can be replaced with user input
+        };
     }
     return null;
   }
@@ -1107,38 +1143,53 @@ export class Game {
     // console.log("tempshapes", this.tempShapes);
 
     this.tempShapes.forEach((tempShape) => {
-      this.ctx.lineWidth = 1.5
+      this.ctx.lineWidth = 1.5;
       this.ctx.strokeStyle =
         tempShape.shape === this.selection.selectedShape?.shape
           ? "blue"
           : "white";
       if (tempShape.function === "draw" || tempShape.function === "move") {
         const { shape } = tempShape;
-        if (shape.type === "rect") {
-          this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
-        } else if (shape.type === "circle") {
-          this.ctx.beginPath();
-          this.ctx.arc(
-            shape.centerX,
-            shape.centerY,
-            shape.radius,
-            0,
-            Math.PI * 2
-          );
-          this.ctx.stroke();
-        } else if (shape.type === "line") {
-          this.ctx.beginPath();
-          this.ctx.moveTo(shape.x, shape.y);
-          this.ctx.lineTo(shape.x2, shape.y2);
-          this.ctx.stroke();
-        } else if (shape.type === "pencil") {
-          this.ctx.beginPath();
-          ///////////////
-          this.ctx.moveTo(shape.points[0]!.x, shape.points[0]!.y);
-          shape.points.forEach((point) => {
-            this.ctx.lineTo(point.x, point.y);
-          });
-          this.ctx.stroke();
+
+        switch (shape.type) {
+          case "rect":
+            this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+            break;
+          case "circle":
+            this.ctx.beginPath();
+            this.ctx.arc(
+              shape.centerX,
+              shape.centerY,
+              shape.radius,
+              0,
+              Math.PI * 2
+            );
+            this.ctx.stroke();
+            break;
+          case "line":
+            this.ctx.beginPath();
+            this.ctx.moveTo(shape.x, shape.y);
+            this.ctx.lineTo(shape.x2, shape.y2);
+            this.ctx.stroke();
+            break;
+          case "pencil":
+            if (shape.points && shape.points.length > 0) {
+              this.ctx.beginPath();
+              this.ctx.moveTo(shape.points[0]!.x, shape.points[0]!.y);
+              shape.points.forEach((point) => {
+                this.ctx.lineTo(point.x, point.y);
+              });
+              this.ctx.stroke();
+            }
+            break;
+          case "text":
+            this.ctx.fontKerning = "auto";
+            this.ctx.fillStyle = "white";
+            this.ctx.font = "20px sans-serif";
+            this.ctx.textBaseline = "top";
+            this.ctx.textAlign = "left";
+            this.ctx.fillText(shape.text, shape.x, shape.y);
+            break;
         }
       }
     });
@@ -1147,30 +1198,43 @@ export class Game {
     if (this.drawing.active) {
       this.ctx.strokeStyle = "white";
       const shape = this.createShape();
-      if (shape?.type === "rect") {
-        this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
-      } else if (shape?.type === "circle") {
-        this.ctx.beginPath();
-        this.ctx.arc(
-          shape.centerX,
-          shape.centerY,
-          shape.radius,
-          0,
-          Math.PI * 2
-        );
-        this.ctx.stroke();
-      } else if (shape?.type === "line") {
-        this.ctx.beginPath();
-        this.ctx.moveTo(shape.x, shape.y);
-        this.ctx.lineTo(shape.x2, shape.y2);
-        this.ctx.stroke();
-      } else if (shape?.type === "pencil") {
-        this.ctx.beginPath();
-        this.ctx.moveTo(shape.points[0]!.x, shape.points[0]!.y);
-        shape.points.forEach((point) => {
-          this.ctx.lineTo(point.x, point.y);
-        });
-        this.ctx.stroke();
+
+      if (shape) {
+        switch (shape.type) {
+          case "rect":
+            this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+            break;
+          case "circle":
+            this.ctx.beginPath();
+            this.ctx.arc(
+              shape.centerX,
+              shape.centerY,
+              shape.radius,
+              0,
+              Math.PI * 2
+            );
+            this.ctx.stroke();
+            break;
+          case "line":
+            this.ctx.beginPath();
+            this.ctx.moveTo(shape.x, shape.y);
+            this.ctx.lineTo(shape.x2, shape.y2);
+            this.ctx.stroke();
+            break;
+          case "pencil":
+            if (shape.points && shape.points.length > 0) {
+              this.ctx.beginPath();
+              this.ctx.moveTo(shape.points[0]!.x, shape.points[0]!.y);
+              shape.points.forEach((point) => {
+                this.ctx.lineTo(point.x, point.y);
+              });
+              this.ctx.stroke();
+            }
+            break;
+          case "text":
+            this.ctx.font = "20px sans-serif";
+            this.ctx.fillText(shape.text, shape.x, shape.y);
+        }
       }
     }
   }

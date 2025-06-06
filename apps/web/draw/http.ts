@@ -26,7 +26,13 @@ interface PencilProps {
   type: "pencil";
   points: { x: number; y: number }[];
 }
-export type Shapes = RectProps | CircleProps | LineProps | PencilProps;
+interface TextProps {
+  type: "text";
+  x: number;
+  y: number;
+  text: string;
+}
+export type Shapes = RectProps | CircleProps | LineProps | PencilProps | TextProps;
 export interface Payload {
   id: string;
   function: "draw" | "erase" | "move";

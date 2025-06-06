@@ -9,6 +9,7 @@ export enum Tools {
   Select = "select",
   Eraser = "eraser",
   Hand = "hand",
+  Text = "text",
 }
 
 function MenuOption({
@@ -92,6 +93,12 @@ export default function Canvas({
             Selection
           </MenuOption>
           |
+          <MenuOption
+            isActive={selectedTool === Tools.Text}
+            onClick={() => setSelectedTool(Tools.Text)}
+          >
+            Text
+          </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Line}
             onClick={() => setSelectedTool(Tools.Line)}
