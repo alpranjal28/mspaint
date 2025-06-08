@@ -789,11 +789,23 @@ export class Game {
       }
       case "text": {
         // For text, check if the point is within the bounding box of the text
-        const textWidth = this.ctx.measureText(shape.text).width;
-        const textHeight = 20; // Assuming text height of 20px
+        // Handle multiline text
+        const text = shape.text || '';
+        const lines = text.split('\n');
+        const lineHeight = 24; // 24px line height
+        
+        // Calculate max width for bounding box
+        let maxWidth = 0;
+        lines.forEach(line => {
+          const width = this.ctx.measureText(line).width;
+          maxWidth = Math.max(maxWidth, width);
+        });
+        
+        const textHeight = lines.length * lineHeight;
+        
         return (
           point.x >= shape.x &&
-          point.x <= shape.x + textWidth &&
+          point.x <= shape.x + maxWidth &&
           point.y >= shape.y &&
           point.y <= shape.y + textHeight
         );
@@ -1275,13 +1287,28 @@ export class Game {
             this.ctx.font = "20px sans-serif";
             this.ctx.textBaseline = "top";
             this.ctx.textAlign = "left";
-            this.ctx.fillText(shape.text, shape.x, shape.y);
+            
+            // Handle multiline text
+            const text = shape.text || '';
+            const lines = text.split('\n');
+            const lineHeight = 24; // 24px line height
+            
+            // Calculate max width for selection box
+            let maxWidth = 0;
+            lines.forEach(line => {
+              const width = this.ctx.measureText(line).width;
+              maxWidth = Math.max(maxWidth, width);
+            });
+            
+            // Draw each line of text
+            lines.forEach((line, index) => {
+              this.ctx.fillText(line, shape.x, shape.y + index * lineHeight);
+            });
             
             // Draw selection box for text when selected
             if (tempShape.shape === this.selection.selectedShape?.shape) {
-              const textWidth = this.ctx.measureText(shape.text).width;
-              const textHeight = 20;
-              this.ctx.strokeRect(shape.x - 2, shape.y - 2, textWidth + 4, textHeight + 4);
+              const textHeight = lines.length * lineHeight;
+              this.ctx.strokeRect(shape.x - 2, shape.y - 2, maxWidth + 4, textHeight + 4);
             }
             break;
         }
@@ -1330,7 +1357,13 @@ export class Game {
             this.ctx.font = "20px sans-serif";
             this.ctx.textBaseline = "top";
             this.ctx.textAlign = "left";
-            this.ctx.fillText(shape.text, shape.x, shape.y);
+            
+            // Handle multiline text
+            const text = shape.text || '';
+            const lines = text.split('\n');
+            lines.forEach((line, index) => {
+              this.ctx.fillText(line, shape.x, shape.y + index * 24); // 24px line height
+            });
         }
       }
     }
@@ -1340,18 +1373,26 @@ export class Game {
       const x = parseFloat(this.textArea.dataset.x || "0");
       const y = parseFloat(this.textArea.dataset.y || "0");
       const text = this.textArea.value || "";
+      const lines = text.split('\n');
+      const lineHeight = 24; // 24px line height
       
       this.ctx.fillStyle = "white";
       this.ctx.font = "20px sans-serif";
       this.ctx.textBaseline = "top";
       this.ctx.textAlign = "left";
-      this.ctx.fillText(text, x, y);
       
-      // Draw blinking cursor
+      // Draw each line of text
+      lines.forEach((line, index) => {
+        this.ctx.fillText(line, x, y + index * lineHeight);
+      });
+      
+      // Draw blinking cursor at the end of the last line
       const now = Date.now();
       if (Math.floor(now / 500) % 2 === 0) {
-        const textWidth = this.ctx.measureText(text).width;
-        this.ctx.fillRect(x + textWidth, y, 1, 20);
+        const lastLine = lines[lines.length - 1] || "";
+        const lastLineWidth = this.ctx.measureText(lastLine).width;
+        const cursorY = y + (lines.length - 1) * lineHeight;
+        this.ctx.fillRect(x + lastLineWidth, cursorY, 1, 20);
       }
       
       // Request animation frame to keep cursor blinking
@@ -1389,13 +1430,13 @@ export class Game {
     const screenX = x * this.current.scale + this.current.x + rect.left;
     const screenY = y * this.current.scale + this.current.y + rect.top;
     
-    // Set textarea styles - make it invisible
+    // Set textarea styles - make it invisible but allow multiline input
     this.textArea.style.left = `${screenX}px`;
     this.textArea.style.top = `${screenY}px`;
     this.textArea.style.opacity = "0";
     this.textArea.style.pointerEvents = "auto";
-    this.textArea.style.width = "1px";
-    this.textArea.style.height = "1px";
+    this.textArea.style.width = "300px"; // Give it width for multiline support
+    this.textArea.style.height = "100px"; // Give it height for multiline support
     this.textArea.style.zIndex = "9999";
     
     // Store the world coordinates for later use
@@ -1413,16 +1454,12 @@ export class Game {
   }
   
   private handleTextAreaBlur = (): void => {
-    // Don't finalize on blur - we'll handle this in onMouseDown
-    // This prevents issues with text disappearing when clicking elsewhere
+    // Finalize text input when clicking away
+    this.finalizeTextInput();
   }
   
   private handleTextAreaKeyDown = (e: KeyboardEvent): void => {
-    // Submit on Enter (without shift)
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      this.finalizeTextInput();
-    }
+    // Allow Enter for new lines (don't prevent default)
     
     // Cancel on Escape
     if (e.key === "Escape") {
