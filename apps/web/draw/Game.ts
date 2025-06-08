@@ -1748,16 +1748,6 @@ export class Game {
               this.ctx.fillText(line, shape.x, shape.y + index * lineHeight);
             });
 
-            // Draw selection box for text when selected
-            if (isTextSelected) {
-              const textHeight = lines.length * lineHeight;
-              this.ctx.strokeRect(
-                shape.x - 2,
-                shape.y - 2,
-                maxWidth + 4,
-                textHeight + 4
-              );
-            }
             break;
         }
       }
