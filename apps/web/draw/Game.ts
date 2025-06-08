@@ -1,16 +1,27 @@
 import { Tools } from "../components/Canvas";
 import getExistingShapes, { Payload, Shapes, Action } from "./http";
 
+// Extend Window interface to store mouse position
+declare global {
+  interface Window {
+    mouseX?: number;
+    mouseY?: number;
+  }
+}
+
 interface SelectionState {
   active: boolean;
   startX: number;
   startY: number;
   selectedShape?: Payload;
+  selectedShapes: Payload[];
   isDragging: boolean;
   dragOffsetX: number;
   dragOffsetY: number;
   isResizing: boolean;
   resizeHandle: string;
+  isMultiSelect: boolean;
+  shapeOffsets: Map<string, { x: number; y: number }>;
 }
 
 export class Game {
@@ -38,6 +49,9 @@ export class Game {
     dragOffsetY: 0,
     isResizing: false,
     resizeHandle: "",
+    selectedShapes: [],
+    isMultiSelect: false,
+    shapeOffsets: new Map(),
   };
   private lastSelectedShapeIndex: number = -1;
   private frame = 0;
@@ -79,6 +93,8 @@ export class Game {
 
     if (tool !== Tools.Select) {
       this.selection.selectedShape = undefined;
+      this.selection.selectedShapes = [];
+      this.selection.isMultiSelect = false;
     }
   }
 
@@ -128,16 +144,20 @@ export class Game {
           switch (message.function) {
             case "erase":
               console.log("erase shape with ID:", message.id);
-              this.tempShapes = this.tempShapes.filter(shape => shape.id !== message.id);
+              this.tempShapes = this.tempShapes.filter(
+                (shape) => shape.id !== message.id
+              );
               break;
             case "draw":
-              if (!this.tempShapes.some(shape => shape.id === message.id)) {
+              if (!this.tempShapes.some((shape) => shape.id === message.id)) {
                 console.log("drawing new shape:", message);
                 this.tempShapes.push(message);
               }
               break;
             case "move":
-              const shapeToMove = this.tempShapes.findIndex(s => s.id === message.id);
+              const shapeToMove = this.tempShapes.findIndex(
+                (s) => s.id === message.id
+              );
               if (shapeToMove !== -1 && message.shape) {
                 this.tempShapes[shapeToMove]!.shape = message.shape;
               }
@@ -213,21 +233,38 @@ export class Game {
     // Check corners first (they take precedence)
     if (Math.abs(pos.x - x) <= handleSize && Math.abs(pos.y - y) <= handleSize)
       return "nw";
-    if (Math.abs(pos.x - (x + width)) <= handleSize && Math.abs(pos.y - y) <= handleSize)
+    if (
+      Math.abs(pos.x - (x + width)) <= handleSize &&
+      Math.abs(pos.y - y) <= handleSize
+    )
       return "ne";
-    if (Math.abs(pos.x - x) <= handleSize && Math.abs(pos.y - (y + height)) <= handleSize)
+    if (
+      Math.abs(pos.x - x) <= handleSize &&
+      Math.abs(pos.y - (y + height)) <= handleSize
+    )
       return "sw";
-    if (Math.abs(pos.x - (x + width)) <= handleSize && Math.abs(pos.y - (y + height)) <= handleSize)
+    if (
+      Math.abs(pos.x - (x + width)) <= handleSize &&
+      Math.abs(pos.y - (y + height)) <= handleSize
+    )
       return "se";
 
     // Then check edges
     if (Math.abs(pos.y - y) <= handleSize && pos.x > x && pos.x < x + width)
       return "n";
-    if (Math.abs(pos.y - (y + height)) <= handleSize && pos.x > x && pos.x < x + width)
+    if (
+      Math.abs(pos.y - (y + height)) <= handleSize &&
+      pos.x > x &&
+      pos.x < x + width
+    )
       return "s";
     if (Math.abs(pos.x - x) <= handleSize && pos.y > y && pos.y < y + height)
       return "w";
-    if (Math.abs(pos.x - (x + width)) <= handleSize && pos.y > y && pos.y < y + height)
+    if (
+      Math.abs(pos.x - (x + width)) <= handleSize &&
+      pos.y > y &&
+      pos.y < y + height
+    )
       return "e";
 
     return "";
@@ -341,6 +378,38 @@ export class Game {
   }
 
   // mouse events
+  private calculateShapeOffset(
+    payload: Payload,
+    pos: { x: number; y: number }
+  ): { x: number; y: number } {
+    if (!payload || !payload.shape) return { x: 0, y: 0 };
+
+    const { shape } = payload;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    switch (shape.type) {
+      case "circle":
+        offsetX = pos.x - shape.centerX;
+        offsetY = pos.y - shape.centerY;
+        break;
+      case "rect":
+      case "line":
+      case "text":
+        offsetX = pos.x - shape.x;
+        offsetY = pos.y - shape.y;
+        break;
+      case "pencil":
+        if (shape.points && shape.points.length > 0) {
+          offsetX = pos.x - shape.points[0]!.x;
+          offsetY = pos.y - shape.points[0]!.y;
+        }
+        break;
+    }
+
+    return { x: offsetX, y: offsetY };
+  }
+
   private onMouseDown = (e: MouseEvent) => {
     const pos = this.getMousePos(e);
 
@@ -374,10 +443,12 @@ export class Game {
         break;
 
       case Tools.Select:
+        // Check if shift key is pressed for multi-select
+        const isShiftPressed = e.shiftKey;
         const selectedShape = this.findShapeAtPosition(pos);
 
+        // Check if clicking on a resize handle of the currently selected shape
         if (this.selection.selectedShape) {
-          // Check if clicking on a resize handle of the currently selected shape
           const handle = this.getResizeHandle(
             pos,
             this.selection.selectedShape
@@ -395,7 +466,15 @@ export class Game {
         let dragOffsetX = 0;
         let dragOffsetY = 0;
 
-        if (selectedShape) {
+        // Check if clicking on any of the already selected shapes
+        const clickedOnSelectedShape =
+          selectedShape &&
+          (selectedShape === this.selection.selectedShape ||
+            this.selection.selectedShapes.some(
+              (s) => s.id === selectedShape.id
+            ));
+
+        if (selectedShape && clickedOnSelectedShape) {
           // Calculate drag offsets based on shape type
           if (selectedShape.shape.type === "circle") {
             dragOffsetX = pos.x - selectedShape.shape.centerX;
@@ -416,19 +495,91 @@ export class Game {
             dragOffsetX = pos.x - selectedShape.shape.points[0]!.x;
             dragOffsetY = pos.y - selectedShape.shape.points[0]!.y;
           }
+
+          // Keep existing selection and just update drag state
+          this.selection.isDragging = true;
+          this.selection.dragOffsetX = dragOffsetX;
+          this.selection.dragOffsetY = dragOffsetY;
+          this.selection.startX = pos.x;
+          this.selection.startY = pos.y;
+
+          // Store individual offsets for each selected shape
+          this.selection.shapeOffsets.clear();
+          this.selection.selectedShapes.forEach((shape) => {
+            const offset = this.calculateShapeOffset(shape, pos);
+            this.selection.shapeOffsets.set(shape.id, offset);
+          });
+
+          this.canvas.style.cursor = "move";
+        } else {
+          // Start a new selection
+          if (!isShiftPressed) {
+            // Clear previous selection if shift is not pressed
+            this.selection.selectedShapes = [];
+          }
+
+          if (selectedShape) {
+            // Single shape selection
+            if (selectedShape.shape.type === "circle") {
+              dragOffsetX = pos.x - selectedShape.shape.centerX;
+              dragOffsetY = pos.y - selectedShape.shape.centerY;
+            } else if (
+              selectedShape.shape.type === "rect" ||
+              selectedShape.shape.type === "line" ||
+              selectedShape.shape.type === "text"
+            ) {
+              dragOffsetX = pos.x - selectedShape.shape.x;
+              dragOffsetY = pos.y - selectedShape.shape.y;
+            } else if (
+              selectedShape.shape.type === "pencil" &&
+              selectedShape.shape.points &&
+              selectedShape.shape.points.length > 0
+            ) {
+              dragOffsetX = pos.x - selectedShape.shape.points[0]!.x;
+              dragOffsetY = pos.y - selectedShape.shape.points[0]!.y;
+            }
+
+            // Add to selection if shift is pressed, otherwise make it the only selection
+            if (isShiftPressed) {
+              // Toggle selection with shift
+              const existingIndex = this.selection.selectedShapes.findIndex(
+                (s) => s.id === selectedShape.id
+              );
+              if (existingIndex >= 0) {
+                this.selection.selectedShapes.splice(existingIndex, 1);
+              } else {
+                this.selection.selectedShapes.push(selectedShape);
+              }
+            } else {
+              this.selection.selectedShapes = [selectedShape];
+            }
+
+            this.selection.selectedShape = selectedShape;
+            this.selection.isDragging = true;
+
+            // Store individual offsets for each selected shape
+            this.selection.shapeOffsets.clear();
+            this.selection.selectedShapes.forEach((shape) => {
+              const offset = this.calculateShapeOffset(shape, pos);
+              this.selection.shapeOffsets.set(shape.id, offset);
+            });
+
+            this.canvas.style.cursor = "move";
+          } else {
+            // Start a box selection
+            this.selection.isMultiSelect = true;
+            this.selection.selectedShape = undefined;
+            this.canvas.style.cursor = "crosshair";
+          }
+
+          this.selection.active = true;
+          this.selection.startX = pos.x;
+          this.selection.startY = pos.y;
+          this.selection.dragOffsetX = dragOffsetX;
+          this.selection.dragOffsetY = dragOffsetY;
+          this.selection.isResizing = false;
+          this.selection.resizeHandle = "";
         }
-        this.canvas.style.cursor = selectedShape ? "move" : "crosshair";
-        this.selection = {
-          active: true,
-          startX: pos.x,
-          startY: pos.y,
-          selectedShape,
-          isDragging: !!selectedShape,
-          dragOffsetX,
-          dragOffsetY,
-          isResizing: false,
-          resizeHandle: "",
-        };
         break;
 
       default:
@@ -451,6 +602,10 @@ export class Game {
   };
 
   private onMouseMove = (e: MouseEvent) => {
+    // Store mouse position globally for selection box drawing
+    window.mouseX = e.clientX;
+    window.mouseY = e.clientY;
+
     const pos = this.getMousePos(e);
 
     if (this.selectedTool === Tools.Hand && this.canvasDrag.active) {
@@ -468,12 +623,11 @@ export class Game {
       this.canvasDrag.startY = e.clientY;
 
       this.animate();
-    } else if (
-      this.selectedTool === Tools.Select &&
-      this.selection.active &&
-      this.selection.selectedShape
-    ) {
-      if (this.selection.isResizing) {
+    } else if (this.selectedTool === Tools.Select && this.selection.active) {
+      if (this.selection.isMultiSelect) {
+        // We're doing a box selection, just need to update the render
+        this.render();
+      } else if (this.selection.selectedShape && this.selection.isResizing) {
         this.resizeShape(
           this.selection.selectedShape,
           pos.x,
@@ -485,12 +639,29 @@ export class Game {
         this.selection.startX = pos.x;
         this.selection.startY = pos.y;
       } else if (this.selection.isDragging) {
-        this.moveShape(
-          this.selection.selectedShape,
-          pos.x - this.selection.dragOffsetX,
-          pos.y - this.selection.dragOffsetY
-        );
-      } else {
+        // Move primary selected shape
+        if (this.selection.selectedShape) {
+          const offset = this.selection.shapeOffsets.get(
+            this.selection.selectedShape.id
+          ) || { x: this.selection.dragOffsetX, y: this.selection.dragOffsetY };
+          this.moveShape(
+            this.selection.selectedShape,
+            pos.x - offset.x,
+            pos.y - offset.y
+          );
+        }
+
+        // Move all other shapes in the selection group with their individual offsets
+        this.selection.selectedShapes.forEach((shape) => {
+          if (shape !== this.selection.selectedShape) {
+            const offset = this.selection.shapeOffsets.get(shape.id) || {
+              x: this.selection.dragOffsetX,
+              y: this.selection.dragOffsetY,
+            };
+            this.moveShape(shape, pos.x - offset.x, pos.y - offset.y);
+          }
+        });
+      } else if (this.selection.selectedShape) {
         const handle = this.getResizeHandle(pos, this.selection.selectedShape);
         if (handle) {
           this.canvas.style.cursor = this.getCursorForHandle(handle);
@@ -508,7 +679,9 @@ export class Game {
     }
   };
 
-  private onMouseUp = () => {
+  private onMouseUp = (e: MouseEvent) => {
+    const pos = this.getMousePos(e);
+
     switch (this.selectedTool) {
       case Tools.Hand:
         this.canvasDrag.active = false;
@@ -522,7 +695,31 @@ export class Game {
         break;
 
       case Tools.Select:
-        if (this.selection.isResizing && this.selection.selectedShape) {
+        if (this.selection.isMultiSelect) {
+          // Finalize box selection
+          const startX = Math.min(this.selection.startX, pos.x);
+          const startY = Math.min(this.selection.startY, pos.y);
+          const endX = Math.max(this.selection.startX, pos.x);
+          const endY = Math.max(this.selection.startY, pos.y);
+
+          // Find all shapes within the selection box
+          const selectedShapes = this.tempShapes.filter((shape) => {
+            return this.isShapeInSelectionBox(
+              shape,
+              startX,
+              startY,
+              endX,
+              endY
+            );
+          });
+
+          if (selectedShapes.length > 0) {
+            this.selection.selectedShapes = selectedShapes;
+            this.selection.selectedShape = selectedShapes[0];
+          }
+
+          this.selection.isMultiSelect = false;
+        } else if (this.selection.isResizing && this.selection.selectedShape) {
           this.addToHistory({
             type: "move",
             payload: this.selection.selectedShape,
@@ -536,44 +733,97 @@ export class Game {
               message: JSON.stringify(this.selection.selectedShape),
             })
           );
-        } else if (this.selection.isDragging && this.selection.selectedShape) {
-          let oldPosition = { x: 0, y: 0 };
+        } else if (this.selection.isDragging) {
+          // Handle history for the primary selected shape
+          if (this.selection.selectedShape) {
+            let oldPosition = { x: 0, y: 0 };
 
-          // Get the old position based on shape type
-          const shape = this.selection.selectedShape.shape;
-          if (shape.type === "circle") {
-            oldPosition = { x: shape.centerX, y: shape.centerY };
-          } else if (
-            shape.type === "rect" ||
-            shape.type === "line" ||
-            shape.type === "text"
-          ) {
-            oldPosition = { x: shape.x, y: shape.y };
-          } else if (
-            shape.type === "pencil" &&
-            shape.points &&
-            shape.points.length > 0
-          ) {
-            oldPosition = { x: shape.points[0]!.x, y: shape.points[0]!.y };
+            // Get the old position based on shape type
+            const shape = this.selection.selectedShape.shape;
+            if (shape.type === "circle") {
+              oldPosition = { x: shape.centerX, y: shape.centerY };
+            } else if (
+              shape.type === "rect" ||
+              shape.type === "line" ||
+              shape.type === "text"
+            ) {
+              oldPosition = { x: shape.x, y: shape.y };
+            } else if (
+              shape.type === "pencil" &&
+              shape.points &&
+              shape.points.length > 0
+            ) {
+              oldPosition = { x: shape.points[0]!.x, y: shape.points[0]!.y };
+            }
+            const newPosition = {
+              x: oldPosition.x + (this.selection.dragOffsetX || 0),
+              y: oldPosition.y + (this.selection.dragOffsetY || 0),
+            };
+            this.addToHistory({
+              type: "move",
+              payload: this.selection.selectedShape,
+              oldPosition,
+              newPosition,
+            });
+            this.socket.send(
+              JSON.stringify({
+                type: "chat",
+                roomId: this.roomId,
+                message: JSON.stringify(this.selection.selectedShape),
+              })
+            );
           }
-          const newPosition = {
-            x: oldPosition.x + (this.selection.dragOffsetX || 0),
-            y: oldPosition.y + (this.selection.dragOffsetY || 0),
-          };
-          this.addToHistory({
-            type: "move",
-            payload: this.selection.selectedShape,
-            oldPosition,
-            newPosition,
+
+          // Handle history for all other selected shapes
+          this.selection.selectedShapes.forEach((shape) => {
+            if (shape !== this.selection.selectedShape) {
+              let oldPosition = { x: 0, y: 0 };
+
+              if (shape.shape.type === "circle") {
+                oldPosition = {
+                  x: shape.shape.centerX,
+                  y: shape.shape.centerY,
+                };
+              } else if (
+                shape.shape.type === "rect" ||
+                shape.shape.type === "line" ||
+                shape.shape.type === "text"
+              ) {
+                oldPosition = { x: shape.shape.x, y: shape.shape.y };
+              } else if (
+                shape.shape.type === "pencil" &&
+                shape.shape.points &&
+                shape.shape.points.length > 0
+              ) {
+                oldPosition = {
+                  x: shape.shape.points[0]!.x,
+                  y: shape.shape.points[0]!.y,
+                };
+              }
+
+              const newPosition = {
+                x: oldPosition.x + (this.selection.dragOffsetX || 0),
+                y: oldPosition.y + (this.selection.dragOffsetY || 0),
+              };
+
+              this.addToHistory({
+                type: "move",
+                payload: shape,
+                oldPosition,
+                newPosition,
+              });
+
+              this.socket.send(
+                JSON.stringify({
+                  type: "chat",
+                  roomId: this.roomId,
+                  message: JSON.stringify(shape),
+                })
+              );
+            }
           });
-          this.socket.send(
-            JSON.stringify({
-              type: "chat",
-              roomId: this.roomId,
-              message: JSON.stringify(this.selection.selectedShape),
-            })
-          );
         }
+
         this.selection.isDragging = false;
         this.selection.isResizing = false;
         break;
@@ -807,6 +1057,253 @@ export class Game {
     payload.function = "move"; // Ensure it's marked as a move action
   }
 
+  private isShapeInSelectionBox(
+    payload: Payload,
+    startX: number,
+    startY: number,
+    endX: number,
+    endY: number
+  ): boolean {
+    if (!payload || !payload.shape) return false;
+
+    const { shape } = payload;
+
+    switch (shape.type) {
+      case "rect": {
+        // Check if any corner of the rectangle is inside the selection box
+        const corners = [
+          { x: shape.x, y: shape.y },
+          { x: shape.x + shape.width, y: shape.y },
+          { x: shape.x, y: shape.y + shape.height },
+          { x: shape.x + shape.width, y: shape.y + shape.height },
+        ];
+
+        // Check if any corner is inside the selection box
+        for (const corner of corners) {
+          if (
+            corner.x >= startX &&
+            corner.x <= endX &&
+            corner.y >= startY &&
+            corner.y <= endY
+          ) {
+            return true;
+          }
+        }
+
+        // Also check if the selection box is completely inside the rectangle
+        if (
+          startX >= shape.x &&
+          endX <= shape.x + shape.width &&
+          startY >= shape.y &&
+          endY <= shape.y + shape.height
+        ) {
+          return true;
+        }
+
+        return false;
+      }
+
+      case "circle": {
+        // Check if the center is inside the selection box
+        if (
+          shape.centerX >= startX &&
+          shape.centerX <= endX &&
+          shape.centerY >= startY &&
+          shape.centerY <= endY
+        ) {
+          return true;
+        }
+
+        // Check if any point on the circle intersects with the selection box
+        // This is a simplified check - just checking if the circle intersects with the box edges
+        const closestX = Math.max(startX, Math.min(shape.centerX, endX));
+        const closestY = Math.max(startY, Math.min(shape.centerY, endY));
+        const distanceX = shape.centerX - closestX;
+        const distanceY = shape.centerY - closestY;
+
+        return (
+          distanceX * distanceX + distanceY * distanceY <=
+          shape.radius * shape.radius
+        );
+      }
+
+      case "line": {
+        // Check if either endpoint is inside the selection box
+        if (
+          (shape.x >= startX &&
+            shape.x <= endX &&
+            shape.y >= startY &&
+            shape.y <= endY) ||
+          (shape.x2 >= startX &&
+            shape.x2 <= endX &&
+            shape.y2 >= startY &&
+            shape.y2 <= endY)
+        ) {
+          return true;
+        }
+
+        // Check if the line intersects with any of the selection box edges
+        // Line-line intersection check with the four edges of the selection box
+        const lines = [
+          { x1: startX, y1: startY, x2: endX, y2: startY }, // Top edge
+          { x1: endX, y1: startY, x2: endX, y2: endY }, // Right edge
+          { x1: endX, y1: endY, x2: startX, y2: endY }, // Bottom edge
+          { x1: startX, y1: endY, x2: startX, y2: startY }, // Left edge
+        ];
+
+        for (const line of lines) {
+          if (
+            this.doLinesIntersect(
+              shape.x,
+              shape.y,
+              shape.x2,
+              shape.y2,
+              line.x1,
+              line.y1,
+              line.x2,
+              line.y2
+            )
+          ) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      case "pencil": {
+        if (!shape.points || shape.points.length === 0) return false;
+
+        // Check if any point is inside the selection box
+        for (const point of shape.points) {
+          if (
+            point.x >= startX &&
+            point.x <= endX &&
+            point.y >= startY &&
+            point.y <= endY
+          ) {
+            return true;
+          }
+        }
+
+        // Check if any line segment intersects with the selection box edges
+        const lines = [
+          { x1: startX, y1: startY, x2: endX, y2: startY }, // Top edge
+          { x1: endX, y1: startY, x2: endX, y2: endY }, // Right edge
+          { x1: endX, y1: endY, x2: startX, y2: endY }, // Bottom edge
+          { x1: startX, y1: endY, x2: startX, y2: startY }, // Left edge
+        ];
+
+        for (let i = 1; i < shape.points.length; i++) {
+          const p1 = shape.points[i - 1]!;
+          const p2 = shape.points[i]!;
+
+          for (const line of lines) {
+            if (
+              this.doLinesIntersect(
+                p1.x,
+                p1.y,
+                p2.x,
+                p2.y,
+                line.x1,
+                line.y1,
+                line.x2,
+                line.y2
+              )
+            ) {
+              return true;
+            }
+          }
+        }
+
+        return false;
+      }
+
+      case "text": {
+        // For text, check if the bounding box intersects with the selection box
+        const text = shape.text || "";
+        const lines = text.split("\n");
+        const lineHeight = 24; // 24px line height
+
+        // Calculate max width for bounding box
+        let maxWidth = 0;
+        lines.forEach((line) => {
+          const width = this.ctx.measureText(line).width;
+          maxWidth = Math.max(maxWidth, width);
+        });
+
+        const textHeight = lines.length * lineHeight;
+
+        // Check if any corner of the text box is inside the selection box
+        const corners = [
+          { x: shape.x, y: shape.y },
+          { x: shape.x + maxWidth, y: shape.y },
+          { x: shape.x, y: shape.y + textHeight },
+          { x: shape.x + maxWidth, y: shape.y + textHeight },
+        ];
+
+        for (const corner of corners) {
+          if (
+            corner.x >= startX &&
+            corner.x <= endX &&
+            corner.y >= startY &&
+            corner.y <= endY
+          ) {
+            return true;
+          }
+        }
+
+        // Also check if the selection box is completely inside the text box
+        if (
+          startX >= shape.x &&
+          endX <= shape.x + maxWidth &&
+          startY >= shape.y &&
+          endY <= shape.y + textHeight
+        ) {
+          return true;
+        }
+
+        return false;
+      }
+
+      default:
+        return false;
+    }
+  }
+
+  private doLinesIntersect(
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    x3: number,
+    y3: number,
+    x4: number,
+    y4: number
+  ): boolean {
+    // Calculate the direction of the lines
+    const d1x = x2 - x1;
+    const d1y = y2 - y1;
+    const d2x = x4 - x3;
+    const d2y = y4 - y3;
+
+    // Calculate the determinant
+    const det = d1x * d2y - d1y * d2x;
+
+    // If determinant is zero, lines are parallel
+    if (det === 0) return false;
+
+    // Calculate the parameters for the intersection point
+    const dx = x3 - x1;
+    const dy = y3 - y1;
+
+    const t1 = (dx * d2y - dy * d2x) / det;
+    const t2 = (dx * d1y - dy * d1x) / det;
+
+    // Check if the intersection point is within both line segments
+    return t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1;
+  }
+
   private eraseShape(tempShape: Payload) {
     const index = this.tempShapes.indexOf(tempShape);
     if (index !== -1) {
@@ -1037,20 +1534,21 @@ export class Game {
   }
 
   private broadcastAction(action: Action): void {
-    const message = action.type === "draw" 
-      ? action.payload 
-      : action.type === "erase" 
-        ? {
-            function: "erase",
-            id: action.payload.id,
-            timestamp: Date.now(),
-          } 
-        : {
-            function: "move",
-            id: action.payload.id,
-            shape: action.payload.shape,
-            timestamp: Date.now(),
-          };
+    const message =
+      action.type === "draw"
+        ? action.payload
+        : action.type === "erase"
+          ? {
+              function: "erase",
+              id: action.payload.id,
+              timestamp: Date.now(),
+            }
+          : {
+              function: "move",
+              id: action.payload.id,
+              shape: action.payload.shape,
+              timestamp: Date.now(),
+            };
 
     // Send the action to the server
     this.socket.send(
@@ -1179,10 +1677,16 @@ export class Game {
 
     this.tempShapes.forEach((tempShape) => {
       this.ctx.lineWidth = 1.5;
-      this.ctx.strokeStyle =
-        tempShape.shape === this.selection.selectedShape?.shape
-          ? "blue"
-          : "white";
+      const isSelected =
+        tempShape.shape === this.selection.selectedShape?.shape ||
+        this.selection.selectedShapes.some((s) => s.id === tempShape.id);
+      this.ctx.strokeStyle = isSelected ? "blue" : "white";
+
+      // Highlight selected shapes with thicker lines
+      if (isSelected) {
+        this.ctx.lineWidth = 2.5;
+      }
+
       if (tempShape.function === "draw" || tempShape.function === "move") {
         const { shape } = tempShape;
 
@@ -1219,10 +1723,10 @@ export class Game {
             break;
           case "text":
             this.ctx.fontKerning = "auto";
-            this.ctx.fillStyle =
-              tempShape.shape === this.selection.selectedShape?.shape
-                ? "blue"
-                : "white";
+            const isTextSelected =
+              tempShape.shape === this.selection.selectedShape?.shape ||
+              this.selection.selectedShapes.some((s) => s.id === tempShape.id);
+            this.ctx.fillStyle = isTextSelected ? "blue" : "white";
             this.ctx.font = "20px sans-serif";
             this.ctx.textBaseline = "top";
             this.ctx.textAlign = "left";
@@ -1245,7 +1749,7 @@ export class Game {
             });
 
             // Draw selection box for text when selected
-            if (tempShape.shape === this.selection.selectedShape?.shape) {
+            if (isTextSelected) {
               const textHeight = lines.length * lineHeight;
               this.ctx.strokeRect(
                 shape.x - 2,
@@ -1341,6 +1845,35 @@ export class Game {
 
       // Request animation frame to keep cursor blinking
       requestAnimationFrame(this.animate);
+    }
+
+    // Draw selection box if in multi-select mode
+    if (
+      this.selectedTool === Tools.Select &&
+      this.selection.active &&
+      this.selection.isMultiSelect
+    ) {
+      // Get current mouse position for drawing the selection box
+      const rect = this.canvas.getBoundingClientRect();
+      const mouseX = (window.mouseX || 0) - rect.left;
+      const mouseY = (window.mouseY || 0) - rect.top;
+      const mousePos = {
+        x: (mouseX - this.current.x) / this.current.scale,
+        y: (mouseY - this.current.y) / this.current.scale,
+      };
+
+      // Calculate selection box coordinates
+      const startX = Math.min(this.selection.startX, mousePos.x);
+      const startY = Math.min(this.selection.startY, mousePos.y);
+      const width = Math.abs(mousePos.x - this.selection.startX);
+      const height = Math.abs(mousePos.y - this.selection.startY);
+
+      // Draw dashed selection box
+      this.ctx.setLineDash([5, 5]);
+      this.ctx.strokeStyle = "white";
+      this.ctx.lineWidth = 1;
+      this.ctx.strokeRect(startX, startY, width, height);
+      this.ctx.setLineDash([]);
     }
   }
 
