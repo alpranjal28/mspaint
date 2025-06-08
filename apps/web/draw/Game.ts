@@ -869,12 +869,26 @@ export class Game {
     x: number;
     y: number;
   }): Payload | undefined {
-    // Find all shapes at this position
+    // First check if any currently selected shape is at this position
+    // This ensures selected elements remain interactable even when overlapped
+    for (const selectedShape of this.selection.selectedShapes) {
+      if (this.isPointInShape(pos, selectedShape)) {
+        return selectedShape;
+      }
+    }
+
+    // If no selected shape is at this position, find all other shapes
     const shapesAtPosition: Payload[] = [];
 
     for (let i = this.tempShapes.length - 1; i >= 0; i--) {
       const shape = this.tempShapes[i];
       if (!shape || !shape.shape) continue;
+
+      // Skip shapes that are already selected (we checked them above)
+      if (this.selection.selectedShapes.some((s) => s.id === shape.id)) {
+        continue;
+      }
+
       if (this.isPointInShape(pos, shape)) {
         shapesAtPosition.push(shape);
       }
