@@ -1663,6 +1663,68 @@ export class Game {
     }
   };
 
+  private drawShape(tempShape: Payload): void {
+    if (tempShape.function === "draw" || tempShape.function === "move") {
+      const { shape } = tempShape;
+
+      switch (shape.type) {
+        case "rect":
+          this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
+          break;
+        case "circle":
+          this.ctx.beginPath();
+          this.ctx.arc(
+            shape.centerX,
+            shape.centerY,
+            shape.radius,
+            0,
+            Math.PI * 2
+          );
+          this.ctx.stroke();
+          break;
+        case "line":
+          this.ctx.beginPath();
+          this.ctx.moveTo(shape.x, shape.y);
+          this.ctx.lineTo(shape.x2, shape.y2);
+          this.ctx.stroke();
+          break;
+        case "pencil":
+          if (shape.points && shape.points.length > 0) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(shape.points[0]!.x, shape.points[0]!.y);
+            shape.points.forEach((point) => {
+              this.ctx.lineTo(point.x, point.y);
+            });
+            this.ctx.stroke();
+          }
+          break;
+        case "text":
+          this.ctx.fontKerning = "auto";
+          this.ctx.font = "20px sans-serif";
+          this.ctx.textBaseline = "top";
+          this.ctx.textAlign = "left";
+
+          // Handle multiline text
+          const text = shape.text || "";
+          const lines = text.split("\n");
+          const lineHeight = 24; // 24px line height
+
+          // Calculate max width for selection box
+          let maxWidth = 0;
+          lines.forEach((line) => {
+            const width = this.ctx.measureText(line).width;
+            maxWidth = Math.max(maxWidth, width);
+          });
+
+          // Draw each line of text
+          lines.forEach((line, index) => {
+            this.ctx.fillText(line, shape.x, shape.y + index * lineHeight);
+          });
+          break;
+      }
+    }
+  }
+
   private render() {
     const { width, height } = this.canvas;
 
@@ -1675,82 +1737,62 @@ export class Game {
     // Draw existing shapes
     // console.log("tempshapes", this.tempShapes);
 
+    // Track shapes that will be drawn by the selection box logic
+    const shapesInSelectionBox = new Set<string>();
+
+    // If in multi-select mode, identify shapes in the selection box
+    if (
+      this.selectedTool === Tools.Select &&
+      this.selection.active &&
+      this.selection.isMultiSelect
+    ) {
+      const rect = this.canvas.getBoundingClientRect();
+      const mouseX = (window.mouseX || 0) - rect.left;
+      const mouseY = (window.mouseY || 0) - rect.top;
+      const mousePos = {
+        x: (mouseX - this.current.x) / this.current.scale,
+        y: (mouseY - this.current.y) / this.current.scale,
+      };
+
+      const startX = Math.min(this.selection.startX, mousePos.x);
+      const startY = Math.min(this.selection.startY, mousePos.y);
+      const width = Math.abs(mousePos.x - this.selection.startX);
+      const height = Math.abs(mousePos.y - this.selection.startY);
+
+      this.tempShapes.forEach((shape) => {
+        if (
+          this.isShapeInSelectionBox(
+            shape,
+            startX,
+            startY,
+            startX + width,
+            startY + height
+          )
+        ) {
+          shapesInSelectionBox.add(shape.id);
+        }
+      });
+    }
+
     this.tempShapes.forEach((tempShape) => {
+      // Skip if this shape will be drawn by the selection box logic
+      if (shapesInSelectionBox.has(tempShape.id)) return;
+
       this.ctx.lineWidth = 1.5;
       const isSelected =
         tempShape.shape === this.selection.selectedShape?.shape ||
         this.selection.selectedShapes.some((s) => s.id === tempShape.id);
       this.ctx.strokeStyle = isSelected ? "blue" : "white";
 
-      // Highlight selected shapes with thicker lines
-      if (isSelected) {
-        this.ctx.lineWidth = 2.5;
+      // For text, set the fill style based on selection
+      if (tempShape.shape?.type === "text") {
+        const isTextSelected =
+          tempShape.shape === this.selection.selectedShape?.shape ||
+          this.selection.selectedShapes.some((s) => s.id === tempShape.id);
+        this.ctx.fillStyle = isTextSelected ? "blue" : "white";
       }
 
-      if (tempShape.function === "draw" || tempShape.function === "move") {
-        const { shape } = tempShape;
-
-        switch (shape.type) {
-          case "rect":
-            this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
-            break;
-          case "circle":
-            this.ctx.beginPath();
-            this.ctx.arc(
-              shape.centerX,
-              shape.centerY,
-              shape.radius,
-              0,
-              Math.PI * 2
-            );
-            this.ctx.stroke();
-            break;
-          case "line":
-            this.ctx.beginPath();
-            this.ctx.moveTo(shape.x, shape.y);
-            this.ctx.lineTo(shape.x2, shape.y2);
-            this.ctx.stroke();
-            break;
-          case "pencil":
-            if (shape.points && shape.points.length > 0) {
-              this.ctx.beginPath();
-              this.ctx.moveTo(shape.points[0]!.x, shape.points[0]!.y);
-              shape.points.forEach((point) => {
-                this.ctx.lineTo(point.x, point.y);
-              });
-              this.ctx.stroke();
-            }
-            break;
-          case "text":
-            this.ctx.fontKerning = "auto";
-            const isTextSelected =
-              tempShape.shape === this.selection.selectedShape?.shape ||
-              this.selection.selectedShapes.some((s) => s.id === tempShape.id);
-            this.ctx.fillStyle = isTextSelected ? "blue" : "white";
-            this.ctx.font = "20px sans-serif";
-            this.ctx.textBaseline = "top";
-            this.ctx.textAlign = "left";
-
-            // Handle multiline text
-            const text = shape.text || "";
-            const lines = text.split("\n");
-            const lineHeight = 24; // 24px line height
-
-            // Calculate max width for selection box
-            let maxWidth = 0;
-            lines.forEach((line) => {
-              const width = this.ctx.measureText(line).width;
-              maxWidth = Math.max(maxWidth, width);
-            });
-
-            // Draw each line of text
-            lines.forEach((line, index) => {
-              this.ctx.fillText(line, shape.x, shape.y + index * lineHeight);
-            });
-
-            break;
-        }
-      }
+      this.drawShape(tempShape);
     });
 
     // Draw current shape
@@ -1857,6 +1899,31 @@ export class Game {
       const startY = Math.min(this.selection.startY, mousePos.y);
       const width = Math.abs(mousePos.x - this.selection.startX);
       const height = Math.abs(mousePos.y - this.selection.startY);
+
+      // Temporarily change stroke style of elements inside the selection box to blue
+      this.tempShapes.forEach((tempShape) => {
+        if (tempShape.function === "draw" || tempShape.function === "move") {
+          if (
+            this.isShapeInSelectionBox(
+              tempShape,
+              startX,
+              startY,
+              startX + width,
+              startY + height
+            )
+          ) {
+            // Set the stroke style to blue for elements inside the selection box
+            this.ctx.strokeStyle = "blue";
+
+            // Also set text color to blue if it's a text element
+            if (tempShape.shape?.type === "text") {
+              this.ctx.fillStyle = "blue";
+            }
+
+            this.drawShape(tempShape);
+          }
+        }
+      });
 
       // Draw dashed selection box
       this.ctx.setLineDash([5, 5]);
