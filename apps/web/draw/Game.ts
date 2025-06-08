@@ -1070,157 +1070,59 @@ export class Game {
 
     switch (shape.type) {
       case "rect": {
-        // Check if any corner of the rectangle is inside the selection box
-        const corners = [
-          { x: shape.x, y: shape.y },
-          { x: shape.x + shape.width, y: shape.y },
-          { x: shape.x, y: shape.y + shape.height },
-          { x: shape.x + shape.width, y: shape.y + shape.height },
-        ];
-
-        // Check if any corner is inside the selection box
-        for (const corner of corners) {
-          if (
-            corner.x >= startX &&
-            corner.x <= endX &&
-            corner.y >= startY &&
-            corner.y <= endY
-          ) {
-            return true;
-          }
-        }
-
-        // Also check if the selection box is completely inside the rectangle
-        if (
-          startX >= shape.x &&
-          endX <= shape.x + shape.width &&
-          startY >= shape.y &&
-          endY <= shape.y + shape.height
-        ) {
-          return true;
-        }
-
-        return false;
+        // Check if the rectangle is completely inside the selection box
+        return (
+          shape.x >= startX &&
+          shape.x + shape.width <= endX &&
+          shape.y >= startY &&
+          shape.y + shape.height <= endY
+        );
       }
 
       case "circle": {
-        // Check if the center is inside the selection box
-        if (
-          shape.centerX >= startX &&
-          shape.centerX <= endX &&
-          shape.centerY >= startY &&
-          shape.centerY <= endY
-        ) {
-          return true;
-        }
-
-        // Check if any point on the circle intersects with the selection box
-        // This is a simplified check - just checking if the circle intersects with the box edges
-        const closestX = Math.max(startX, Math.min(shape.centerX, endX));
-        const closestY = Math.max(startY, Math.min(shape.centerY, endY));
-        const distanceX = shape.centerX - closestX;
-        const distanceY = shape.centerY - closestY;
-
+        // Check if the circle is completely inside the selection box
+        // The circle is completely inside if its center plus radius in all directions is inside
         return (
-          distanceX * distanceX + distanceY * distanceY <=
-          shape.radius * shape.radius
+          shape.centerX - shape.radius >= startX &&
+          shape.centerX + shape.radius <= endX &&
+          shape.centerY - shape.radius >= startY &&
+          shape.centerY + shape.radius <= endY
         );
       }
 
       case "line": {
-        // Check if either endpoint is inside the selection box
-        if (
-          (shape.x >= startX &&
-            shape.x <= endX &&
-            shape.y >= startY &&
-            shape.y <= endY) ||
-          (shape.x2 >= startX &&
-            shape.x2 <= endX &&
-            shape.y2 >= startY &&
-            shape.y2 <= endY)
-        ) {
-          return true;
-        }
-
-        // Check if the line intersects with any of the selection box edges
-        // Line-line intersection check with the four edges of the selection box
-        const lines = [
-          { x1: startX, y1: startY, x2: endX, y2: startY }, // Top edge
-          { x1: endX, y1: startY, x2: endX, y2: endY }, // Right edge
-          { x1: endX, y1: endY, x2: startX, y2: endY }, // Bottom edge
-          { x1: startX, y1: endY, x2: startX, y2: startY }, // Left edge
-        ];
-
-        for (const line of lines) {
-          if (
-            this.doLinesIntersect(
-              shape.x,
-              shape.y,
-              shape.x2,
-              shape.y2,
-              line.x1,
-              line.y1,
-              line.x2,
-              line.y2
-            )
-          ) {
-            return true;
-          }
-        }
-
-        return false;
+        // Check if both endpoints are inside the selection box
+        return (
+          shape.x >= startX &&
+          shape.x <= endX &&
+          shape.y >= startY &&
+          shape.y <= endY &&
+          shape.x2 >= startX &&
+          shape.x2 <= endX &&
+          shape.y2 >= startY &&
+          shape.y2 <= endY
+        );
       }
 
       case "pencil": {
         if (!shape.points || shape.points.length === 0) return false;
 
-        // Check if any point is inside the selection box
+        // Check if all points are inside the selection box
         for (const point of shape.points) {
           if (
-            point.x >= startX &&
-            point.x <= endX &&
-            point.y >= startY &&
-            point.y <= endY
+            point.x < startX ||
+            point.x > endX ||
+            point.y < startY ||
+            point.y > endY
           ) {
-            return true;
+            return false; // If any point is outside, the shape is not completely inside
           }
         }
-
-        // Check if any line segment intersects with the selection box edges
-        const lines = [
-          { x1: startX, y1: startY, x2: endX, y2: startY }, // Top edge
-          { x1: endX, y1: startY, x2: endX, y2: endY }, // Right edge
-          { x1: endX, y1: endY, x2: startX, y2: endY }, // Bottom edge
-          { x1: startX, y1: endY, x2: startX, y2: startY }, // Left edge
-        ];
-
-        for (let i = 1; i < shape.points.length; i++) {
-          const p1 = shape.points[i - 1]!;
-          const p2 = shape.points[i]!;
-
-          for (const line of lines) {
-            if (
-              this.doLinesIntersect(
-                p1.x,
-                p1.y,
-                p2.x,
-                p2.y,
-                line.x1,
-                line.y1,
-                line.x2,
-                line.y2
-              )
-            ) {
-              return true;
-            }
-          }
-        }
-
-        return false;
+        return true; // All points are inside
       }
 
       case "text": {
-        // For text, check if the bounding box intersects with the selection box
+        // For text, check if the entire bounding box is inside the selection box
         const text = shape.text || "";
         const lines = text.split("\n");
         const lineHeight = 24; // 24px line height
@@ -1234,36 +1136,13 @@ export class Game {
 
         const textHeight = lines.length * lineHeight;
 
-        // Check if any corner of the text box is inside the selection box
-        const corners = [
-          { x: shape.x, y: shape.y },
-          { x: shape.x + maxWidth, y: shape.y },
-          { x: shape.x, y: shape.y + textHeight },
-          { x: shape.x + maxWidth, y: shape.y + textHeight },
-        ];
-
-        for (const corner of corners) {
-          if (
-            corner.x >= startX &&
-            corner.x <= endX &&
-            corner.y >= startY &&
-            corner.y <= endY
-          ) {
-            return true;
-          }
-        }
-
-        // Also check if the selection box is completely inside the text box
-        if (
-          startX >= shape.x &&
-          endX <= shape.x + maxWidth &&
-          startY >= shape.y &&
-          endY <= shape.y + textHeight
-        ) {
-          return true;
-        }
-
-        return false;
+        // Check if the entire text box is inside the selection box
+        return (
+          shape.x >= startX &&
+          shape.x + maxWidth <= endX &&
+          shape.y >= startY &&
+          shape.y + textHeight <= endY
+        );
       }
 
       default:
