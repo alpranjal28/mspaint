@@ -51,7 +51,7 @@ export class Game {
     socket: WebSocket,
     selectedTool: Tools,
     private startInteracting: () => void,
-    private onStopInteracting: () => void,
+    private onStopInteracting: () => void
   ) {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
@@ -67,18 +67,18 @@ export class Game {
   }
 
   public setTool(tool: Tools): void {
-    this.selectedTool = tool;
-
-    // Remove any active text area when changing tools
-    if (this.textArea && tool !== Tools.Text) {
-      this.removeTextArea();
+    // Finalize text if we're switching from text tool
+    if (this.selectedTool === Tools.Text && this.textArea) {
+      this.finalizeTextInput();
     }
+
+    this.selectedTool = tool;
 
     // Update cursor based on selected tool
     if (tool === Tools.Hand) {
       this.canvas.style.cursor = "grab";
     } else if (tool === Tools.Select) {
-      this.canvas.style.cursor = "default";
+      this.canvas.style.cursor = "crosshair";
     } else if (tool === Tools.Eraser) {
       this.canvas.style.cursor = "crosshair";
     } else if (tool === Tools.Text) {
@@ -256,7 +256,7 @@ export class Game {
       const { x, y, text } = shape.shape;
       const textWidth = this.ctx.measureText(text).width;
       const textHeight = 20; // Assuming text height of 20px
-      
+
       // Check corners for text
       if (
         Math.abs(pos.x - x) <= handleSize &&
@@ -278,9 +278,13 @@ export class Game {
         Math.abs(pos.y - (y + textHeight)) <= handleSize
       )
         return "se";
-      
+
       // Check edges for text
-      if (Math.abs(pos.y - y) <= handleSize && pos.x > x && pos.x < x + textWidth)
+      if (
+        Math.abs(pos.y - y) <= handleSize &&
+        pos.x > x &&
+        pos.x < x + textWidth
+      )
         return "n";
       if (
         Math.abs(pos.y - (y + textHeight)) <= handleSize &&
@@ -288,7 +292,11 @@ export class Game {
         pos.x < x + textWidth
       )
         return "s";
-      if (Math.abs(pos.x - x) <= handleSize && pos.y > y && pos.y < y + textHeight)
+      if (
+        Math.abs(pos.x - x) <= handleSize &&
+        pos.y > y &&
+        pos.y < y + textHeight
+      )
         return "w";
       if (
         Math.abs(pos.x - (x + textWidth)) <= handleSize &&
@@ -435,7 +443,7 @@ export class Game {
           this.eraseShape(shapeToErase);
         }
         break;
-        
+
       case Tools.Text:
         this.createTextArea(pos.x, pos.y);
         this.startInteracting();
@@ -485,7 +493,7 @@ export class Game {
             dragOffsetY = pos.y - selectedShape.shape.points[0]!.y;
           }
         }
-        this.canvas.style.cursor = "move";
+        this.canvas.style.cursor = selectedShape ? "move" : "crosshair";
         this.selection = {
           active: true,
           startX: pos.x,
@@ -583,7 +591,7 @@ export class Game {
         this.canvas.style.cursor = "grab";
         this.onStopInteracting();
         break;
-        
+
       case Tools.Text:
         // Do nothing on mouse up for text tool
         // text finalization in onMouseDown at next click
@@ -611,7 +619,11 @@ export class Game {
           const shape = this.selection.selectedShape.shape;
           if (shape.type === "circle") {
             oldPosition = { x: shape.centerX, y: shape.centerY };
-          } else if (shape.type === "rect" || shape.type === "line" || shape.type === "text") {
+          } else if (
+            shape.type === "rect" ||
+            shape.type === "line" ||
+            shape.type === "text"
+          ) {
             oldPosition = { x: shape.x, y: shape.y };
           } else if (
             shape.type === "pencil" &&
@@ -790,19 +802,19 @@ export class Game {
       case "text": {
         // For text, check if the point is within the bounding box of the text
         // Handle multiline text
-        const text = shape.text || '';
-        const lines = text.split('\n');
+        const text = shape.text || "";
+        const lines = text.split("\n");
         const lineHeight = 24; // 24px line height
-        
+
         // Calculate max width for bounding box
         let maxWidth = 0;
-        lines.forEach(line => {
+        lines.forEach((line) => {
           const width = this.ctx.measureText(line).width;
           maxWidth = Math.max(maxWidth, width);
         });
-        
+
         const textHeight = lines.length * lineHeight;
-        
+
         return (
           point.x >= shape.x &&
           point.x <= shape.x + maxWidth &&
@@ -857,7 +869,7 @@ export class Game {
         }));
         break;
       }
-      
+
       case "text": {
         oldPosition = { x: shape.x, y: shape.y };
         shape.x = x;
@@ -865,7 +877,7 @@ export class Game {
         break;
       }
     }
-
+    this.animate();
     // Update timestamp
     payload.timestamp = Date.now();
     payload.function = "move"; // Ensure it's marked as a move action
@@ -934,7 +946,11 @@ export class Game {
           if (shape.type === "circle") {
             shape.centerX = action.oldPosition.x;
             shape.centerY = action.oldPosition.y;
-          } else if (shape.type === "rect" || shape.type === "line" || shape.type === "text") {
+          } else if (
+            shape.type === "rect" ||
+            shape.type === "line" ||
+            shape.type === "text"
+          ) {
             shape.x = action.oldPosition.x;
             shape.y = action.oldPosition.y;
 
@@ -1026,7 +1042,11 @@ export class Game {
           if (shape.type === "circle") {
             shape.centerX = action.newPosition.x;
             shape.centerY = action.newPosition.y;
-          } else if (shape.type === "rect" || shape.type === "line" || shape.type === "text") {
+          } else if (
+            shape.type === "rect" ||
+            shape.type === "line" ||
+            shape.type === "text"
+          ) {
             shape.x = action.newPosition.x;
             shape.y = action.newPosition.y;
 
@@ -1283,32 +1303,40 @@ export class Game {
             break;
           case "text":
             this.ctx.fontKerning = "auto";
-            this.ctx.fillStyle = tempShape.shape === this.selection.selectedShape?.shape ? "blue" : "white";
+            this.ctx.fillStyle =
+              tempShape.shape === this.selection.selectedShape?.shape
+                ? "blue"
+                : "white";
             this.ctx.font = "20px sans-serif";
             this.ctx.textBaseline = "top";
             this.ctx.textAlign = "left";
-            
+
             // Handle multiline text
-            const text = shape.text || '';
-            const lines = text.split('\n');
+            const text = shape.text || "";
+            const lines = text.split("\n");
             const lineHeight = 24; // 24px line height
-            
+
             // Calculate max width for selection box
             let maxWidth = 0;
-            lines.forEach(line => {
+            lines.forEach((line) => {
               const width = this.ctx.measureText(line).width;
               maxWidth = Math.max(maxWidth, width);
             });
-            
+
             // Draw each line of text
             lines.forEach((line, index) => {
               this.ctx.fillText(line, shape.x, shape.y + index * lineHeight);
             });
-            
+
             // Draw selection box for text when selected
             if (tempShape.shape === this.selection.selectedShape?.shape) {
               const textHeight = lines.length * lineHeight;
-              this.ctx.strokeRect(shape.x - 2, shape.y - 2, maxWidth + 4, textHeight + 4);
+              this.ctx.strokeRect(
+                shape.x - 2,
+                shape.y - 2,
+                maxWidth + 4,
+                textHeight + 4
+              );
             }
             break;
         }
@@ -1357,35 +1385,35 @@ export class Game {
             this.ctx.font = "20px sans-serif";
             this.ctx.textBaseline = "top";
             this.ctx.textAlign = "left";
-            
+
             // Handle multiline text
-            const text = shape.text || '';
-            const lines = text.split('\n');
+            const text = shape.text || "";
+            const lines = text.split("\n");
             lines.forEach((line, index) => {
               this.ctx.fillText(line, shape.x, shape.y + index * 24); // 24px line height
             });
         }
       }
     }
-    
+
     // Draw current text input if active
     if (this.textArea && this.selectedTool === Tools.Text) {
       const x = parseFloat(this.textArea.dataset.x || "0");
       const y = parseFloat(this.textArea.dataset.y || "0");
       const text = this.textArea.value || "";
-      const lines = text.split('\n');
+      const lines = text.split("\n");
       const lineHeight = 24; // 24px line height
-      
+
       this.ctx.fillStyle = "white";
       this.ctx.font = "20px sans-serif";
       this.ctx.textBaseline = "top";
       this.ctx.textAlign = "left";
-      
+
       // Draw each line of text
       lines.forEach((line, index) => {
         this.ctx.fillText(line, x, y + index * lineHeight);
       });
-      
+
       // Draw blinking cursor at the end of the last line
       const now = Date.now();
       if (Math.floor(now / 500) % 2 === 0) {
@@ -1394,7 +1422,7 @@ export class Game {
         const cursorY = y + (lines.length - 1) * lineHeight;
         this.ctx.fillRect(x + lastLineWidth, cursorY, 1, 20);
       }
-      
+
       // Request animation frame to keep cursor blinking
       requestAnimationFrame(this.animate);
     }
@@ -1420,16 +1448,16 @@ export class Game {
   private createTextArea(x: number, y: number): void {
     // Remove any existing textarea
     this.removeTextArea();
-    
+
     // Create a new textarea
     this.textArea = document.createElement("textarea");
     this.textArea.style.position = "fixed";
-    
+
     // Calculate position in screen coordinates
     const rect = this.canvas.getBoundingClientRect();
     const screenX = x * this.current.scale + this.current.x + rect.left;
     const screenY = y * this.current.scale + this.current.y + rect.top;
-    
+
     // Set textarea styles - make it invisible but allow multiline input
     this.textArea.style.left = `${screenX}px`;
     this.textArea.style.top = `${screenY}px`;
@@ -1438,62 +1466,65 @@ export class Game {
     this.textArea.style.width = "300px"; // Give it width for multiline support
     this.textArea.style.height = "100px"; // Give it height for multiline support
     this.textArea.style.zIndex = "9999";
-    
+
+    // Adjust y position to center the text (subtract half of line height)
+    const adjustedY = y - 8; // Half of the 24px line height
+
     // Store the world coordinates for later use
     this.textArea.dataset.x = x.toString();
-    this.textArea.dataset.y = y.toString();
-    
+    this.textArea.dataset.y = adjustedY.toString();
+
     // Add event listeners
     this.textArea.addEventListener("blur", this.handleTextAreaBlur);
     this.textArea.addEventListener("keydown", this.handleTextAreaKeyDown);
     this.textArea.addEventListener("input", this.handleTextAreaInput);
-    
+
     // Add to DOM and focus
     document.body.appendChild(this.textArea);
     setTimeout(() => this.textArea?.focus(), 0);
   }
-  
+
   private handleTextAreaBlur = (): void => {
     // Finalize text input when clicking away
     this.finalizeTextInput();
-  }
-  
+  };
+
   private handleTextAreaKeyDown = (e: KeyboardEvent): void => {
     // Allow Enter for new lines (don't prevent default)
-    
+
     // Cancel on Escape
     if (e.key === "Escape") {
       e.preventDefault();
       this.removeTextArea();
       this.onStopInteracting();
     }
-    
+
     // Stop propagation to prevent canvas shortcuts
     e.stopPropagation();
-  }
-  
+  };
+
   private handleTextAreaInput = (): void => {
     if (this.textArea) {
       this.render();
     }
-  }
-  
+  };
+
   private finalizeTextInput(): void {
     if (!this.textArea) return;
-    
+
     const text = this.textArea.value;
     if (text) {
       const x = parseFloat(this.textArea.dataset.x || "0");
       const y = parseFloat(this.textArea.dataset.y || "0");
-      
+
       // Create text shape
       const shape: Shapes = {
         type: "text",
         x,
         y,
-        text
+        text,
       };
-      
+
       // Add to shapes
       const id = `${Math.random() * 11}`;
       const payload: Payload = {
@@ -1502,12 +1533,12 @@ export class Game {
         id,
         timestamp: Date.now(),
       };
-      
+
       this.addToHistory({
         type: "draw",
         payload,
       });
-      
+
       this.socket.send(
         JSON.stringify({
           type: "chat",
@@ -1515,15 +1546,15 @@ export class Game {
           message: JSON.stringify(payload),
         })
       );
-      
+
       this.tempShapes.push(payload);
       this.render();
     }
-    
+
     this.removeTextArea();
     this.onStopInteracting();
   }
-  
+
   private removeTextArea(): void {
     if (this.textArea) {
       this.textArea.removeEventListener("blur", this.handleTextAreaBlur);
