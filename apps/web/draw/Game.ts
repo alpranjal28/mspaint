@@ -75,17 +75,7 @@ export class Game {
     this.selectedTool = tool;
 
     // Update cursor based on selected tool
-    if (tool === Tools.Hand) {
-      this.canvas.style.cursor = "grab";
-    } else if (tool === Tools.Select) {
-      this.canvas.style.cursor = "crosshair";
-    } else if (tool === Tools.Eraser) {
-      this.canvas.style.cursor = "crosshair";
-    } else if (tool === Tools.Text) {
-      this.canvas.style.cursor = "crosshair";
-    } else {
-      this.canvas.style.cursor = "crosshair";
-    }
+    this.canvas.style.cursor = tool === Tools.Hand ? "grab" : "crosshair";
 
     if (tool !== Tools.Select) {
       this.selection.selectedShape = undefined;
@@ -135,26 +125,23 @@ export class Game {
           const message = JSON.parse(data.message);
           console.log("initSocket message = ", message);
 
-          if (message.function === "erase") {
-            // Remove the shape from tempShapes
-            console.log("erase shape with ID:", message.id);
-            this.tempShapes = this.tempShapes.filter(
-              (shape) => shape.id !== message.id
-            );
-          } else if (message.function === "draw") {
-            // Add the shape to tempShapes only if it doesn't already exist
-            if (!this.tempShapes.some((shape) => shape.id === message.id)) {
-              console.log("drawing new shape:", message);
-              this.tempShapes.push(message);
-            }
-          } else if (message.function === "move") {
-            // find the shape and update its position
-            const shapeToMove = this.tempShapes.findIndex(
-              (s) => s.id === message.id
-            );
-            if (shapeToMove !== -1 && message.shape) {
-              this.tempShapes[shapeToMove]!.shape = message.shape;
-            }
+          switch (message.function) {
+            case "erase":
+              console.log("erase shape with ID:", message.id);
+              this.tempShapes = this.tempShapes.filter(shape => shape.id !== message.id);
+              break;
+            case "draw":
+              if (!this.tempShapes.some(shape => shape.id === message.id)) {
+                console.log("drawing new shape:", message);
+                this.tempShapes.push(message);
+              }
+              break;
+            case "move":
+              const shapeToMove = this.tempShapes.findIndex(s => s.id === message.id);
+              if (shapeToMove !== -1 && message.shape) {
+                this.tempShapes[shapeToMove]!.shape = message.shape;
+              }
+              break;
           }
           this.render();
         } catch (error) {
@@ -209,102 +196,39 @@ export class Game {
     if (!shape || !shape.shape) return "";
 
     const handleSize = 8 / this.current.scale; // Adjust handle size based on zoom
+    let x, y, width, height;
 
     if (shape.shape.type === "rect") {
-      const { x, y, width, height } = shape.shape;
-
-      // Check corners first (they take precedence)
-      if (
-        Math.abs(pos.x - x) <= handleSize &&
-        Math.abs(pos.y - y) <= handleSize
-      )
-        return "nw";
-      if (
-        Math.abs(pos.x - (x + width)) <= handleSize &&
-        Math.abs(pos.y - y) <= handleSize
-      )
-        return "ne";
-      if (
-        Math.abs(pos.x - x) <= handleSize &&
-        Math.abs(pos.y - (y + height)) <= handleSize
-      )
-        return "sw";
-      if (
-        Math.abs(pos.x - (x + width)) <= handleSize &&
-        Math.abs(pos.y - (y + height)) <= handleSize
-      )
-        return "se";
-
-      // Then check edges
-      if (Math.abs(pos.y - y) <= handleSize && pos.x > x && pos.x < x + width)
-        return "n";
-      if (
-        Math.abs(pos.y - (y + height)) <= handleSize &&
-        pos.x > x &&
-        pos.x < x + width
-      )
-        return "s";
-      if (Math.abs(pos.x - x) <= handleSize && pos.y > y && pos.y < y + height)
-        return "w";
-      if (
-        Math.abs(pos.x - (x + width)) <= handleSize &&
-        pos.y > y &&
-        pos.y < y + height
-      )
-        return "e";
+      ({ x, y, width, height } = shape.shape);
     } else if (shape.shape.type === "text") {
-      const { x, y, text } = shape.shape;
-      const textWidth = this.ctx.measureText(text).width;
-      const textHeight = 20; // Assuming text height of 20px
-
-      // Check corners for text
-      if (
-        Math.abs(pos.x - x) <= handleSize &&
-        Math.abs(pos.y - y) <= handleSize
-      )
-        return "nw";
-      if (
-        Math.abs(pos.x - (x + textWidth)) <= handleSize &&
-        Math.abs(pos.y - y) <= handleSize
-      )
-        return "ne";
-      if (
-        Math.abs(pos.x - x) <= handleSize &&
-        Math.abs(pos.y - (y + textHeight)) <= handleSize
-      )
-        return "sw";
-      if (
-        Math.abs(pos.x - (x + textWidth)) <= handleSize &&
-        Math.abs(pos.y - (y + textHeight)) <= handleSize
-      )
-        return "se";
-
-      // Check edges for text
-      if (
-        Math.abs(pos.y - y) <= handleSize &&
-        pos.x > x &&
-        pos.x < x + textWidth
-      )
-        return "n";
-      if (
-        Math.abs(pos.y - (y + textHeight)) <= handleSize &&
-        pos.x > x &&
-        pos.x < x + textWidth
-      )
-        return "s";
-      if (
-        Math.abs(pos.x - x) <= handleSize &&
-        pos.y > y &&
-        pos.y < y + textHeight
-      )
-        return "w";
-      if (
-        Math.abs(pos.x - (x + textWidth)) <= handleSize &&
-        pos.y > y &&
-        pos.y < y + textHeight
-      )
-        return "e";
+      const { x: textX, y: textY, text } = shape.shape;
+      x = textX;
+      y = textY;
+      width = this.ctx.measureText(text).width;
+      height = 20; // Assuming text height of 20px
+    } else {
+      return "";
     }
+
+    // Check corners first (they take precedence)
+    if (Math.abs(pos.x - x) <= handleSize && Math.abs(pos.y - y) <= handleSize)
+      return "nw";
+    if (Math.abs(pos.x - (x + width)) <= handleSize && Math.abs(pos.y - y) <= handleSize)
+      return "ne";
+    if (Math.abs(pos.x - x) <= handleSize && Math.abs(pos.y - (y + height)) <= handleSize)
+      return "sw";
+    if (Math.abs(pos.x - (x + width)) <= handleSize && Math.abs(pos.y - (y + height)) <= handleSize)
+      return "se";
+
+    // Then check edges
+    if (Math.abs(pos.y - y) <= handleSize && pos.x > x && pos.x < x + width)
+      return "n";
+    if (Math.abs(pos.y - (y + height)) <= handleSize && pos.x > x && pos.x < x + width)
+      return "s";
+    if (Math.abs(pos.x - x) <= handleSize && pos.y > y && pos.y < y + height)
+      return "w";
+    if (Math.abs(pos.x - (x + width)) <= handleSize && pos.y > y && pos.y < y + height)
+      return "e";
 
     return "";
   }
@@ -1113,28 +1037,20 @@ export class Game {
   }
 
   private broadcastAction(action: Action): void {
-    let message: any;
-
-    switch (action.type) {
-      case "draw":
-        message = action.payload;
-        break;
-      case "erase":
-        message = {
-          function: "erase",
-          id: action.payload.id,
-          timestamp: Date.now(),
-        };
-        break;
-      case "move":
-        message = {
-          function: "move",
-          id: action.payload.id,
-          shape: action.payload.shape,
-          timestamp: Date.now(),
-        };
-        break;
-    }
+    const message = action.type === "draw" 
+      ? action.payload 
+      : action.type === "erase" 
+        ? {
+            function: "erase",
+            id: action.payload.id,
+            timestamp: Date.now(),
+          } 
+        : {
+            function: "move",
+            id: action.payload.id,
+            shape: action.payload.shape,
+            timestamp: Date.now(),
+          };
 
     // Send the action to the server
     this.socket.send(
