@@ -918,19 +918,34 @@ export class Game {
   ): boolean {
     if (!payload || !payload.shape) return false;
     const { shape } = payload;
+    const strokeWidth = 5; // Width for detecting clicks near edges
+
     switch (shape.type) {
-      case "rect":
+      case "rect": {
+        // Check if point is near any edge of the rectangle
+        const nearLeft = Math.abs(point.x - shape.x) <= strokeWidth;
+        const nearRight =
+          Math.abs(point.x - (shape.x + shape.width)) <= strokeWidth;
+        const nearTop = Math.abs(point.y - shape.y) <= strokeWidth;
+        const nearBottom =
+          Math.abs(point.y - (shape.y + shape.height)) <= strokeWidth;
+
+        const withinX = point.x >= shape.x && point.x <= shape.x + shape.width;
+        const withinY = point.y >= shape.y && point.y <= shape.y + shape.height;
+
+        // Return true if point is near any edge and within the bounds
         return (
-          point.x >= shape.x &&
-          point.x <= shape.x + shape.width &&
-          point.y >= shape.y &&
-          point.y <= shape.y + shape.height
+          ((nearLeft || nearRight) && withinY) ||
+          ((nearTop || nearBottom) && withinX)
         );
+      }
 
       case "circle": {
+        // Check if point is near the circle's circumference
         const dx = point.x - shape.centerX;
         const dy = point.y - shape.centerY;
-        return dx * dx + dy * dy <= shape.radius * shape.radius;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        return Math.abs(distance - shape.radius) <= strokeWidth;
       }
 
       case "line": {
@@ -952,7 +967,7 @@ export class Game {
         const projX = shape.x + t * dx;
         const projY = shape.y + t * dy;
 
-        return Math.hypot(point.x - projX, point.y - projY) <= 5;
+        return Math.hypot(point.x - projX, point.y - projY) <= strokeWidth;
       }
 
       case "pencil": {
@@ -961,8 +976,7 @@ export class Game {
           const p1 = shape.points[i - 1];
           const p2 = shape.points[i];
           if (!p1 || !p2) continue;
-          // Calculate the distance from the point to the line segment
-          // using the projection formula
+
           const dx = p2.x - p1.x;
           const dy = p2.y - p1.y;
           const length = Math.sqrt(dx * dx + dy * dy);
@@ -981,15 +995,15 @@ export class Game {
           const projX = p1.x + t * dx;
           const projY = p1.y + t * dy;
 
-          if (Math.hypot(point.x - projX, point.y - projY) <= 5) {
+          if (Math.hypot(point.x - projX, point.y - projY) <= strokeWidth) {
             return true;
           }
         }
         return false;
       }
+
       case "text": {
-        // For text, check if the point is within the bounding box of the text
-        // Handle multiline text
+        // For text, check if point is anywhere inside the text box
         const text = shape.text || "";
         const lines = text.split("\n");
         const lineHeight = 24; // 24px line height
@@ -1003,6 +1017,7 @@ export class Game {
 
         const textHeight = lines.length * lineHeight;
 
+        // Check if point is anywhere inside the text box
         return (
           point.x >= shape.x &&
           point.x <= shape.x + maxWidth &&
