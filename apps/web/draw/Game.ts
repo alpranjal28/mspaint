@@ -252,6 +252,50 @@ export class Game {
         pos.y < y + height
       )
         return "e";
+    } else if (shape.shape.type === "text") {
+      const { x, y, text } = shape.shape;
+      const textWidth = this.ctx.measureText(text).width;
+      const textHeight = 20; // Assuming text height of 20px
+      
+      // Check corners for text
+      if (
+        Math.abs(pos.x - x) <= handleSize &&
+        Math.abs(pos.y - y) <= handleSize
+      )
+        return "nw";
+      if (
+        Math.abs(pos.x - (x + textWidth)) <= handleSize &&
+        Math.abs(pos.y - y) <= handleSize
+      )
+        return "ne";
+      if (
+        Math.abs(pos.x - x) <= handleSize &&
+        Math.abs(pos.y - (y + textHeight)) <= handleSize
+      )
+        return "sw";
+      if (
+        Math.abs(pos.x - (x + textWidth)) <= handleSize &&
+        Math.abs(pos.y - (y + textHeight)) <= handleSize
+      )
+        return "se";
+      
+      // Check edges for text
+      if (Math.abs(pos.y - y) <= handleSize && pos.x > x && pos.x < x + textWidth)
+        return "n";
+      if (
+        Math.abs(pos.y - (y + textHeight)) <= handleSize &&
+        pos.x > x &&
+        pos.x < x + textWidth
+      )
+        return "s";
+      if (Math.abs(pos.x - x) <= handleSize && pos.y > y && pos.y < y + textHeight)
+        return "w";
+      if (
+        Math.abs(pos.x - (x + textWidth)) <= handleSize &&
+        pos.y > y &&
+        pos.y < y + textHeight
+      )
+        return "e";
     }
 
     return "";
@@ -317,6 +361,22 @@ export class Game {
       if (shape.height < 0) {
         shape.y += shape.height;
         shape.height = Math.abs(shape.height);
+      }
+    } else if (shape.type === "text") {
+      // For text, we only allow moving it, not resizing
+      // Just update the position
+      switch (handle) {
+        case "nw":
+        case "n":
+        case "ne":
+        case "e":
+        case "se":
+        case "s":
+        case "sw":
+        case "w":
+          shape.x += dx;
+          shape.y += dy;
+          break;
       }
     }
 
@@ -410,7 +470,8 @@ export class Game {
             dragOffsetY = pos.y - selectedShape.shape.centerY;
           } else if (
             selectedShape.shape.type === "rect" ||
-            selectedShape.shape.type === "line"
+            selectedShape.shape.type === "line" ||
+            selectedShape.shape.type === "text"
           ) {
             dragOffsetX = pos.x - selectedShape.shape.x;
             dragOffsetY = pos.y - selectedShape.shape.y;
@@ -550,7 +611,7 @@ export class Game {
           const shape = this.selection.selectedShape.shape;
           if (shape.type === "circle") {
             oldPosition = { x: shape.centerX, y: shape.centerY };
-          } else if (shape.type === "rect" || shape.type === "line") {
+          } else if (shape.type === "rect" || shape.type === "line" || shape.type === "text") {
             oldPosition = { x: shape.x, y: shape.y };
           } else if (
             shape.type === "pencil" &&
@@ -729,11 +790,12 @@ export class Game {
       case "text": {
         // For text, check if the point is within the bounding box of the text
         const textWidth = this.ctx.measureText(shape.text).width;
+        const textHeight = 20; // Assuming text height of 20px
         return (
           point.x >= shape.x &&
           point.x <= shape.x + textWidth &&
-          point.y >= shape.y - 20 && // Assuming a height of 20px for the text
-          point.y <= shape.y
+          point.y >= shape.y &&
+          point.y <= shape.y + textHeight
         );
       }
     }
@@ -781,6 +843,13 @@ export class Game {
           x: point.x + dx,
           y: point.y + dy,
         }));
+        break;
+      }
+      
+      case "text": {
+        oldPosition = { x: shape.x, y: shape.y };
+        shape.x = x;
+        shape.y = y;
         break;
       }
     }
@@ -853,7 +922,7 @@ export class Game {
           if (shape.type === "circle") {
             shape.centerX = action.oldPosition.x;
             shape.centerY = action.oldPosition.y;
-          } else if (shape.type === "rect" || shape.type === "line") {
+          } else if (shape.type === "rect" || shape.type === "line" || shape.type === "text") {
             shape.x = action.oldPosition.x;
             shape.y = action.oldPosition.y;
 
@@ -945,7 +1014,7 @@ export class Game {
           if (shape.type === "circle") {
             shape.centerX = action.newPosition.x;
             shape.centerY = action.newPosition.y;
-          } else if (shape.type === "rect" || shape.type === "line") {
+          } else if (shape.type === "rect" || shape.type === "line" || shape.type === "text") {
             shape.x = action.newPosition.x;
             shape.y = action.newPosition.y;
 
@@ -1202,11 +1271,18 @@ export class Game {
             break;
           case "text":
             this.ctx.fontKerning = "auto";
-            this.ctx.fillStyle = "white";
+            this.ctx.fillStyle = tempShape.shape === this.selection.selectedShape?.shape ? "blue" : "white";
             this.ctx.font = "20px sans-serif";
             this.ctx.textBaseline = "top";
             this.ctx.textAlign = "left";
             this.ctx.fillText(shape.text, shape.x, shape.y);
+            
+            // Draw selection box for text when selected
+            if (tempShape.shape === this.selection.selectedShape?.shape) {
+              const textWidth = this.ctx.measureText(shape.text).width;
+              const textHeight = 20;
+              this.ctx.strokeRect(shape.x - 2, shape.y - 2, textWidth + 4, textHeight + 4);
+            }
             break;
         }
       }
