@@ -11,6 +11,7 @@
     "check-types": "tsc --noEmit"
   },
   "dependencies": {
+    "@hookform/resolvers": "^5.1.1",
     "@repo/backend-common": "workspace:*",
     "@repo/ui": "workspace:*",
     "axios": "^1.8.4",
@@ -20,7 +21,8 @@
     "next": "^15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-hook-form": "^7.54.2"
+    "react-hook-form": "^7.54.2",
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^15.1.6",
