@@ -23,12 +23,21 @@ function MenuOption({
 }) {
   return (
     <div
-      className={`text-white py-1 px-2 rounded-lg cursor-pointer  transition-colors ${isActive ? "bg-slate-900" : "hover:bg-slate-700"}`}
+      className={`px-4 py-2 rounded-lg cursor-pointer transition-all duration-200 text-sm font-medium
+        ${
+          isActive
+            ? "bg-blue-600 text-white shadow-lg shadow-blue-500/25"
+            : "text-gray-300 hover:bg-gray-700/50 hover:text-white"
+        }`}
       onClick={onClick}
     >
       {children}
     </div>
   );
+}
+
+function Divider() {
+  return <div className="w-px h-8 bg-gray-700/50" />;
 }
 
 export default function Canvas({
@@ -57,7 +66,7 @@ export default function Canvas({
         socket,
         selectedTool,
         () => setIsInteracting(true),
-        () => setIsInteracting(false),
+        () => setIsInteracting(false)
       );
       setGame(g);
       return () => g.cleanup();
@@ -65,77 +74,88 @@ export default function Canvas({
   }, [canvasRef.current, roomId, socket]);
 
   return (
-    <main className="relative flex min-h-screen bg-gray-950">
+    <main className="relative flex min-h-screen bg-gradient-to-b from-gray-900 to-gray-800">
       <canvas
         height={window.innerHeight}
         ref={canvasRef}
         width={window.innerWidth}
+        className="backdrop-blur-sm"
       />
 
       {/* Tool Selection */}
       <div
-        className={`fixed top-0 left-0 right-0 flex justify-center items-center mt-4 ${isInteracting ? "pointer-events-none" : ""}`}
+        className={`fixed top-0 left-0 right-0 flex justify-center items-center mt-6 
+          ${isInteracting ? "pointer-events-none opacity-50" : "opacity-100"}
+          transition-opacity duration-200`}
       >
-        <div className="flex justify-center items-center gap-1 p-1 bg-gray-800 transition-all duration-500 select-none rounded-lg">
+        <div
+          className="flex justify-center items-center gap-2 p-2 bg-gray-800/80 backdrop-blur-sm 
+          shadow-2xl rounded-xl border border-gray-700/50"
+        >
           <MenuOption
             isActive={selectedTool === Tools.Hand}
             onClick={() => setSelectedTool(Tools.Hand)}
           >
-            hand
+            ✋ Hand
           </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Select}
             onClick={() => setSelectedTool(Tools.Select)}
           >
-            Selection
+            ◻️ Select
           </MenuOption>
-          |
+          <Divider />
           <MenuOption
             isActive={selectedTool === Tools.Text}
             onClick={() => setSelectedTool(Tools.Text)}
           >
-            Text
+            📝 Text
           </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Line}
             onClick={() => setSelectedTool(Tools.Line)}
           >
-            line
+            ➖ Line
           </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Pencil}
             onClick={() => setSelectedTool(Tools.Pencil)}
           >
-            pencil
+            ✏️ Pencil
           </MenuOption>
+          <Divider />
           <MenuOption
             isActive={selectedTool === Tools.Rect}
             onClick={() => setSelectedTool(Tools.Rect)}
           >
-            rect
+            ⬜ Rectangle
           </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Circle}
             onClick={() => setSelectedTool(Tools.Circle)}
           >
-            circle
+            ⭕ Circle
           </MenuOption>
+          <Divider />
           <MenuOption
             isActive={selectedTool === Tools.Eraser}
             onClick={() => setSelectedTool(Tools.Eraser)}
           >
-            eraser
+            🧹 Eraser
           </MenuOption>
         </div>
       </div>
 
       {/* Quick Actions */}
       <div
-        className={`fixed bottom-0 right-0 flex justify-center items-center gap-1 p-1 m-4 rounded-lg bg-gray-800 transition-all duration-500 select-none ${isInteracting ? "pointer-events-none" : ""}`}
+        className={`fixed bottom-0 right-0 flex justify-center items-center gap-2 p-2 m-6 
+          rounded-xl bg-gray-800/80 backdrop-blur-sm shadow-2xl border border-gray-700/50
+          ${isInteracting ? "pointer-events-none opacity-50" : "opacity-100"}
+          transition-opacity duration-200`}
       >
-        <MenuOption onClick={() => game?.undo()}>undo</MenuOption>
-        <MenuOption onClick={() => game?.recenterCanvas()}>recenter</MenuOption>
-        <MenuOption onClick={() => game?.redo()}>redo</MenuOption>
+        <MenuOption onClick={() => game?.undo()}>↩️ Undo</MenuOption>
+        <MenuOption onClick={() => game?.recenterCanvas()}>⌘ center</MenuOption>
+        <MenuOption onClick={() => game?.redo()}>↪️ Redo</MenuOption>
       </div>
     </main>
   );
