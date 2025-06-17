@@ -55,7 +55,7 @@ export function AuthPage({ isSignIn }: { isSignIn: boolean }) {
       localStorage.setItem("username", response.data.username);
       localStorage.setItem("token", response.data.token);
       reset();
-      window.location.href = "/";
+      window.location.href = "/room";
     } catch (err) {
       if (err instanceof AxiosError) {
         setError(err.response?.data?.message || "Authentication failed");
