@@ -3,6 +3,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import axios, { AxiosError } from "axios";
 import { HTTP_BACKEND_URL } from "../../config";
+import { DeleteModal } from "../../components/DeleteModal";
+import { Trash } from "lucide-react";
 
 export interface Room {
   id: number;
@@ -26,6 +28,8 @@ export default function RoomsPage() {
   const [newRoomName, setNewRoomName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
 
   useEffect(() => {
     fetchRooms();
@@ -74,17 +78,23 @@ export default function RoomsPage() {
     }
   };
 
-  const deleteRoom = async (roomId: number) => {
-    if (!confirm("Are you sure you want to delete this room?")) return;
+  const initiateDelete = (room: Room) => {
+    setRoomToDelete(room);
+    setIsDeleteModalOpen(true);
+  };
+  const confirmDelete = async () => {
+    if (!roomToDelete) return;
 
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`${HTTP_BACKEND_URL}/room/${roomId}`, {
+      await axios.delete(`${HTTP_BACKEND_URL}/room/${roomToDelete.id}`, {
         headers: {
           Authorization: `${token}`,
         },
       });
-      setRooms(rooms.filter((room) => room.id !== roomId));
+      setRooms(rooms.filter((room) => room.id !== roomToDelete.id));
+      setIsDeleteModalOpen(false);
+      setRoomToDelete(null);
     } catch (err) {
       handleError(err, "Failed to delete room");
     }
@@ -174,10 +184,10 @@ export default function RoomsPage() {
                 <h3 className="text-xl font-medium text-white">{room.name}</h3>
                 {room.isOwner && (
                   <button
-                    onClick={() => deleteRoom(room.id)}
-                    className="text-red-400 hover:text-red-300 transition-colors"
+                    onClick={() => initiateDelete(room)}
+                    className="text-gray-400/50 hover:text-red-400 transition-colors"
                   >
-                    🗑️
+                    <Trash/>
                   </button>
                 )}
               </div>
@@ -215,6 +225,15 @@ export default function RoomsPage() {
           </div>
         )}
       </div>
+      <DeleteModal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setRoomToDelete(null);
+        }}
+        onConfirm={confirmDelete}
+        roomName={roomToDelete?.name || ""}
+      />
     </div>
   );
 }
