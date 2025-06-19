@@ -3,7 +3,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import axios, { AxiosError } from "axios";
 import { HTTP_BACKEND_URL } from "../../config";
-// import { Room, RoomResponse, CreateRoomResponse } from "@/types/room";
 
 export interface Room {
   id: number;
@@ -34,12 +33,18 @@ export default function RoomsPage() {
 
   const fetchRooms = async () => {
     try {
+      console.log("fetching existing rooms");
       const token = localStorage.getItem("token");
-      const { data } = await axios.get<RoomResponse>(`${HTTP_BACKEND_URL}/room`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      const { data } = await axios.get<RoomResponse>(
+        `${HTTP_BACKEND_URL}/rooms/`,
+        {
+          headers: {
+            Authorization: `${token}`,
+          },
+        }
+      );
+      console.log(data);
+
       setRooms(data.rooms);
     } catch (err) {
       handleError(err, "Failed to load rooms");
@@ -53,15 +58,15 @@ export default function RoomsPage() {
     try {
       const token = localStorage.getItem("token");
       const { data } = await axios.post<CreateRoomResponse>(
-        "/api/rooms",
+        `${HTTP_BACKEND_URL}/room/`,
         { name: newRoomName },
         {
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `${token}`,
           },
         }
       );
-      setRooms([...rooms, data.room]);
+      fetchRooms();
       setNewRoomName("");
       setIsCreating(false);
     } catch (err) {
@@ -71,15 +76,15 @@ export default function RoomsPage() {
 
   const deleteRoom = async (roomId: number) => {
     if (!confirm("Are you sure you want to delete this room?")) return;
-    
+
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`/api/rooms/${roomId}`, {
+      await axios.delete(`${HTTP_BACKEND_URL}/room/${roomId}`, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `${token}`,
         },
       });
-      setRooms(rooms.filter(room => room.id !== roomId));
+      setRooms(rooms.filter((room) => room.id !== roomId));
     } catch (err) {
       handleError(err, "Failed to delete room");
     }
@@ -102,12 +107,16 @@ export default function RoomsPage() {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-white mb-4">Your Drawing Rooms</h1>
-          <p className="text-gray-400 mb-8">Create or join rooms to collaborate with others</p>
-          
+          <h1 className="text-4xl font-bold text-white mb-4">
+            Your Drawing Rooms
+          </h1>
+          <p className="text-gray-400 mb-8">
+            Create or join rooms to collaborate with others
+          </p>
+
           <button
             onClick={() => setIsCreating(true)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium 
+            className="top-3 left-0 right-0 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium 
               hover:bg-blue-700 transition-colors shadow-lg shadow-blue-500/25"
           >
             Create New Room
@@ -184,6 +193,13 @@ export default function RoomsPage() {
               </Link>
             </div>
           ))}
+          {isLoading && (
+            <div className="min-h-40 p-6 bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-700/50 hover:border-gray-600/50 transition-colors">
+              <p className="flex items-center justify-center h-full text-gray-400 text-sm">
+                Loading rooms...
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Empty State */}

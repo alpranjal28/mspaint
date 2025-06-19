@@ -14,25 +14,40 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  photo     String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  rooms     Room[]
-  Chats     Chat[]
+  id            String            @id @default(uuid())
+  name          String
+  email         String            @unique
+  password      String
+  photo         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  ownedRooms    Room[]            @relation("RoomAdmin")
+  participantIn RoomParticipant[]
+  Chats         Chat[]
 }
 
 model Room {
-  id        Int      @id @default(autoincrement())
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  adminId   String
-  admin     User     @relation(fields: [adminId], references: [id])
-  Chats     Chat[]
+  id           Int               @id @default(autoincrement())
+  slug         String            @unique
+  name         String            @default("room-{${nanoid()}}")
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  adminId      String
+  admin        User              @relation("RoomAdmin", fields: [adminId], references: [id])
+  participants RoomParticipant[]
+  Chats        Chat[]
+}
+
+model RoomParticipant {
+  id       Int      @id @default(autoincrement())
+  userId   String
+  roomId   Int
+  joinedAt DateTime @default(now())
+  role     String   @default("member") // Can be "member" or "moderator"
+  user     User     @relation(fields: [userId], references: [id])
+  room     Room     @relation(fields: [roomId], references: [id])
+
+  @@unique([userId, roomId])
 }
 
 model Chat {

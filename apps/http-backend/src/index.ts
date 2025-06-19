@@ -5,6 +5,7 @@ import {
   hashPassword,
   checkPassword,
   refreshToken,
+  verifyToken,
 } from "@repo/backend-common/config";
 import {
   CreateUserSchema,
@@ -26,6 +27,7 @@ app.get("/", (req, res) => {
   res.send("Hello from http-backend!");
 });
 
+// auth routes
 app.post("/signup", async (req, res) => {
   const parsedData = CreateUserSchema.safeParse(req.body);
   if (!parsedData.success) {
@@ -109,18 +111,19 @@ app.post("/signin", async (req, res) => {
   // res.cookie("token", token);
 });
 
+// room routes
 app.post("/room", middleware, async (req, res) => {
   console.log("crossed middleware");
 
-  // create room
-  const pardsedData = CreateRoomSchems.safeParse(req.body);
-  if (!pardsedData.success) {
-    res.status(400).json(pardsedData.error);
-    return;
-  }
-  console.log("pardsedData => ", pardsedData);
-
   try {
+    // create room
+    const pardsedData = CreateRoomSchems.safeParse(req.body);
+    if (!pardsedData.success) {
+      res.status(400).json(pardsedData.error);
+      return;
+    }
+    console.log("pardsedData => ", pardsedData);
+
     const room = await prismaClient.room.create({
       data: {
         adminId: req.body.JwtPayload.userId,
@@ -129,12 +132,72 @@ app.post("/room", middleware, async (req, res) => {
     });
 
     res.json({
-      roomId: room.id,
+      room,
     });
   } catch (error) {
-    console.log("error => ", error);
-    res.status(400).json({ message: "Room already exists" });
+    console.log("create room error => ", error);
+    res.status(400).json({ message: "Room creation failed" });
     return;
+  }
+});
+
+app.get("/rooms", middleware, async (req, res) => {
+  try {
+    const parsedData = verifyToken(req.headers.authorization!) as {
+      userId: string;
+    };
+    console.log("parsedData => ", parsedData);
+    // const userId = req.body.JwtPayload.userId;
+    const userId = parsedData.userId;
+
+    // Get rooms where user is admin
+    const ownedRooms = await prismaClient.room.findMany({
+      where: {
+        adminId: userId,
+      },
+      select: {
+        id: true,
+        slug: true,
+        createdAt: true,
+      },
+    });
+
+    // Get rooms where user is a participant (you'll need to implement this based on your schema)
+    const participatingRooms = await prismaClient.room.findMany({
+      where: {
+        participants: {
+          some: {
+            userId: userId,
+          },
+        },
+      },
+      select: {
+        id: true,
+        slug: true,
+        createdAt: true,
+      },
+    });
+
+    // Combine and format rooms
+    const rooms = [
+      ...ownedRooms.map((room) => ({
+        id: room.id,
+        name: room.slug,
+        createdAt: room.createdAt.toISOString(),
+        isOwner: true,
+      })),
+      ...participatingRooms.map((room) => ({
+        id: room.id,
+        name: room.slug,
+        createdAt: room.createdAt.toISOString(),
+        isOwner: false,
+      })),
+    ];
+
+    res.json({ rooms });
+  } catch (error) {
+    console.error("Get rooms error:", error);
+    res.status(500).json({ message: "Failed to fetch rooms" });
   }
 });
 
@@ -159,6 +222,59 @@ app.get("/room/:roomId", middleware, async (req, res) => {
   });
 
   res.json({ messages });
+});
+
+app.delete("/room/:roomId", middleware, async (req, res): Promise<void> => {
+  try {
+    const roomId = Number(req.params.roomId);
+    if (isNaN(roomId)) {
+      res.status(400).json({ message: "Invalid room ID" });
+      return;
+    }
+
+    const parsedData = verifyToken(req.headers.authorization!) as {
+      userId: string;
+    };
+    const userId = parsedData.userId;
+
+    // Check if room exists and user is admin
+    const room = await prismaClient.room.findFirst({
+      where: {
+        id: roomId,
+        adminId: userId,
+      },
+    });
+
+    if (!room) {
+      res.status(404).json({
+        message: "Room not found or you don't have permission to delete it",
+      });
+      return;
+    }
+
+    // Delete all related records first (due to foreign key constraints)
+    await prismaClient.$transaction([
+      prismaClient.chat.deleteMany({
+        where: { roomId },
+      }),
+      prismaClient.roomParticipant.deleteMany({
+        where: { roomId },
+      }),
+      prismaClient.room.delete({
+        where: { id: roomId },
+      }),
+    ]);
+
+    res.status(200).json({
+      message: "Room deleted successfully",
+      roomId,
+    });
+    return;
+  } catch (error) {
+    console.error("Delete room error:", error);
+    res.status(500).json({ message: "Failed to delete room" });
+    return;
+  }
 });
 
 app.get("/chats/:slug", middleware, async (req, res) => {
