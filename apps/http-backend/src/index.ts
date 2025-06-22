@@ -229,7 +229,7 @@ app.get("/rooms", middleware, async (req, res) => {
         createdAt: true,
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
 
@@ -248,7 +248,7 @@ app.get("/rooms", middleware, async (req, res) => {
         createdAt: true,
       },
       orderBy: {
-        createdAt: 'desc',
+        createdAt: "desc",
       },
     });
 
@@ -264,7 +264,7 @@ app.get("/rooms", middleware, async (req, res) => {
       ...participatingRooms.map((room) => ({
         id: room.id,
         name: room.slug,
-        createdAt: room.createdAt.toISOString(),
+        joinedAt: room.createdAt.toISOString(),
         isOwner: false,
       })),
     ];
@@ -349,6 +349,51 @@ app.delete("/room/:roomId", middleware, async (req, res): Promise<void> => {
     console.error("Delete room error:", error);
     res.status(500).json({ message: "Failed to delete room" });
     return;
+  }
+});
+
+app.post("/room/:roomId/leave", middleware, async (req, res) => {
+  try {
+    const roomId = Number(req.params.roomId);
+    if (isNaN(roomId)) {
+      res.status(400).json({ message: "Invalid room ID" });
+      return;
+    }
+
+    const parsedData = verifyToken(req.headers.authorization!) as {
+      userId: string;
+    };
+    const userId = parsedData.userId;
+
+    // Check if user is a participant
+    const participant = await prismaClient.roomParticipant.findUnique({
+      where: {
+        userId_roomId: {
+          userId,
+          roomId,
+        },
+      },
+    });
+
+    if (!participant) {
+      res.status(404).json({ message: "You are not a member of this room" });
+      return;
+    }
+
+    // Remove user from room
+    await prismaClient.roomParticipant.delete({
+      where: {
+        userId_roomId: {
+          userId,
+          roomId,
+        },
+      },
+    });
+
+    res.json({ message: "Left room successfully" });
+  } catch (error) {
+    console.error("Leave room error:", error);
+    res.status(500).json({ message: "Failed to leave room" });
   }
 });
 

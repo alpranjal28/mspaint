@@ -4,13 +4,14 @@ import Link from "next/link";
 import axios, { AxiosError } from "axios";
 import { HTTP_BACKEND_URL } from "../../config";
 import { DeleteModal } from "../../components/DeleteModal";
-import { Share, Share2, Trash } from "lucide-react";
+import { Share2, Trash } from "lucide-react";
 
 export interface Room {
   id: number;
   name: string;
   shareCode: string;
   createdAt: string;
+  joinedAt: string;
   isOwner: boolean;
 }
 
@@ -283,9 +284,15 @@ export default function RoomsPage() {
                   </div>
                 )}
               </div>
-              <p className="text-gray-400 text-sm mb-4">
-                Created {new Date(room.createdAt).toLocaleDateString()}
-              </p>
+              {room.isOwner ? (
+                <p className="text-gray-400 text-sm mb-4">
+                  Created {new Date(room.createdAt).toLocaleDateString()}
+                </p>
+              ) : (
+                <p className="text-gray-400 text-sm mb-4">
+                  Joined {new Date(room.joinedAt).toLocaleDateString()}
+                </p>
+              )}
               <Link
                 href={`/room/${room.id}`}
                 className="inline-block px-4 py-2 bg-blue-600/20 text-blue-400 rounded-lg 
