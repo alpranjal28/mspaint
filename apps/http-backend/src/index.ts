@@ -51,7 +51,7 @@ app.post("/signup", async (req, res) => {
     const hashedPassword = hashPassword(parsedData.data.password);
     const createdUser = await prismaClient.user.create({
       data: {
-        name: parsedData.data.username,
+        username: parsedData.data.username,
         email: parsedData.data.email,
         password: hashedPassword,
         photo:
@@ -59,9 +59,10 @@ app.post("/signup", async (req, res) => {
       },
     });
 
-    res.json({
-      userId: createdUser.id,
-    });
+    const token = accessToken(createdUser.id, createdUser.email);
+    const refToken = refreshToken(createdUser.id, createdUser.username);
+
+    res.json({ username: createdUser.username, token });
 
     console.log("created user", createdUser);
     // res.redirect("/");
@@ -96,8 +97,8 @@ app.post("/signin", async (req, res) => {
   }
 
   const token = accessToken(user.id, user.email);
-  const refToken = refreshToken(user.id, user.name);
-  const username = user.name;
+  const refToken = refreshToken(user.id, user.username);
+  const username = user.username;
 
   res.cookie("refreshToken", refToken, {
     httpOnly: true,
