@@ -3,8 +3,8 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import axios, { AxiosError } from "axios";
 import { HTTP_BACKEND_URL } from "../../config";
-import { DeleteModal } from "../../components/DeleteModal";
-import { Share2, Trash } from "lucide-react";
+import { DeleteModal, LeaveModal } from "../../components/ExitRoom";
+import { LogOut, Share2, Trash } from "lucide-react";
 
 export interface Room {
   id: number;
@@ -30,6 +30,8 @@ export default function RoomsPage() {
   const [newRoomName, setNewRoomName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [roomToLeave, setRoomToLeave] = useState<Room | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
@@ -106,6 +108,32 @@ export default function RoomsPage() {
       } else {
         setJoinError("Failed to join room");
       }
+    }
+  };
+
+  const initiateLeave = (room: Room) => {
+    setRoomToLeave(room);
+    setIsLeaveModalOpen(true);
+  };
+
+  const confirmLeave = async () => {
+    if (!roomToLeave) return;
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(
+        `${HTTP_BACKEND_URL}/room/${roomToLeave.id}/leave`,
+        {},
+        {
+          headers: {
+            Authorization: `${token}`,
+          },
+        }
+      );
+      setRooms(rooms.filter((room) => room.id !== roomToLeave.id));
+      setIsLeaveModalOpen(false);
+      setRoomToLeave(null);
+    } catch (err) {
+      handleError(err, "Failed to leave room");
     }
   };
 
@@ -272,16 +300,27 @@ export default function RoomsPage() {
                         navigator.clipboard.writeText(room.shareCode);
                       }}
                       className="text-gray-400/50 hover:text-blue-400 transition-colors"
+                      title="Copy Share Code"
                     >
                       <Share2 />
                     </button>
                     <button
                       onClick={() => initiateDelete(room)}
                       className="text-gray-400/50 hover:text-red-400 transition-colors"
+                      title="Delete Room"
                     >
                       <Trash />
                     </button>
                   </div>
+                )}
+                {!room.isOwner && (
+                  <button
+                    onClick={() => initiateLeave(room)}
+                    className="text-gray-400/50 hover:text-red-400 transition-colors"
+                    title="Leave Room"
+                  >
+                    <LogOut />
+                  </button>
                 )}
               </div>
               {room.isOwner ? (
@@ -325,6 +364,15 @@ export default function RoomsPage() {
         }}
         onConfirm={confirmDelete}
         roomName={roomToDelete?.name || ""}
+      />
+      <LeaveModal
+        isOpen={isLeaveModalOpen}
+        onClose={() => {
+          setIsLeaveModalOpen(false);
+          setRoomToLeave(null);
+        }}
+        onConfirm={confirmLeave}
+        roomName={roomToLeave?.name || ""}
       />
     </div>
   );
