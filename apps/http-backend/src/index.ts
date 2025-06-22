@@ -14,6 +14,7 @@ import {
 } from "@repo/common/zod-types";
 import { prismaClient } from "@repo/db-config/prisma";
 import cors from "cors";
+import { generateShareCode } from "./tools";
 
 const app = express();
 const port = process.env.PORT || 3030;
@@ -107,9 +108,6 @@ app.post("/signin", async (req, res) => {
   });
 
   res.json({ username, token });
-  // res.json(token);
-  // res.redirect("/");
-  // res.cookie("token", token);
 });
 
 // room routes
@@ -117,7 +115,6 @@ app.post("/room", middleware, async (req, res) => {
   console.log("crossed middleware");
 
   try {
-    // create room
     const pardsedData = CreateRoomSchems.safeParse(req.body);
     if (!pardsedData.success) {
       res.status(400).json(pardsedData.error);
@@ -125,20 +122,89 @@ app.post("/room", middleware, async (req, res) => {
     }
     console.log("pardsedData => ", pardsedData);
 
+    // Check if room name already exists
+    const existingRoom = await prismaClient.room.findFirst({
+      where: { slug: pardsedData.data.name },
+    });
+    if (existingRoom) {
+      res.status(400).json({ message: "Room name already exists" });
+      return;
+    }
+
+    // Generate a unique share code
+    let shareCode: string;
+    while (true) {
+      shareCode = generateShareCode();
+      const exists = await prismaClient.room.findUnique({
+        where: { shareCode },
+      });
+      if (!exists) break;
+    }
+
+    // create room
     const room = await prismaClient.room.create({
       data: {
         adminId: req.body.JwtPayload.userId,
         slug: pardsedData.data.name,
+        shareCode,
       },
     });
 
-    res.json({
-      room,
-    });
+    res.json({ room });
   } catch (error) {
     console.log("create room error => ", error);
-    res.status(400).json({ message: "Room creation failed" });
+    res.status(400).json({ message: "Room already exists" });
     return;
+  }
+});
+
+app.post("/room/join", middleware, async (req, res) => {
+  try {
+    const { code }: { code: string } = req.body;
+    if (!code) {
+      res.status(400).json({ message: "Share code is required" });
+      return;
+    }
+
+    const parsedData = verifyToken(req.headers.authorization!) as {
+      userId: string;
+    };
+    const userId = parsedData.userId;
+
+    const room = await prismaClient.room.findUnique({
+      where: { shareCode: code },
+    });
+
+    if (!room) {
+      res.status(404).json({ message: "Room not found" });
+      return;
+    }
+
+    // Check if user is already a participant
+    const alreadyParticipant = await prismaClient.roomParticipant.findUnique({
+      where: {
+        userId_roomId: {
+          userId,
+          roomId: room.id,
+        },
+      },
+    });
+
+    if (alreadyParticipant) {
+      res.status(400).json({ message: "Already joined this room" });
+      return;
+    }
+
+    await prismaClient.roomParticipant.create({
+      data: {
+        userId,
+        roomId: room.id,
+      },
+    });
+
+    res.json({ message: "Joined room successfully", roomId: room.id });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to join room" });
   }
 });
 
@@ -159,7 +225,11 @@ app.get("/rooms", middleware, async (req, res) => {
       select: {
         id: true,
         slug: true,
+        shareCode: true,
         createdAt: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
     });
 
@@ -177,6 +247,9 @@ app.get("/rooms", middleware, async (req, res) => {
         slug: true,
         createdAt: true,
       },
+      orderBy: {
+        createdAt: 'desc',
+      },
     });
 
     // Combine and format rooms
@@ -184,6 +257,7 @@ app.get("/rooms", middleware, async (req, res) => {
       ...ownedRooms.map((room) => ({
         id: room.id,
         name: room.slug,
+        shareCode: room.shareCode || null,
         createdAt: room.createdAt.toISOString(),
         isOwner: true,
       })),

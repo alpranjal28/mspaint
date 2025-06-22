@@ -32,7 +32,12 @@ interface TextProps {
   y: number;
   text: string;
 }
-export type Shapes = RectProps | CircleProps | LineProps | PencilProps | TextProps;
+export type Shapes =
+  | RectProps
+  | CircleProps
+  | LineProps
+  | PencilProps
+  | TextProps;
 export interface Payload {
   id: string;
   function: "draw" | "erase" | "move";
