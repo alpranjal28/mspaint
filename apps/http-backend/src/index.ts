@@ -299,7 +299,7 @@ app.get("/room/:roomId", middleware, async (req, res) => {
   res.json({ messages });
 });
 
-app.delete("/room/:roomId", middleware, async (req, res): Promise<void> => {
+app.delete("/room/:roomId/delete", middleware, async (req, res): Promise<void> => {
   try {
     const roomId = Number(req.params.roomId);
     if (isNaN(roomId)) {

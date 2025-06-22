@@ -118,7 +118,7 @@ export default function RoomsPage() {
 
     try {
       const token = localStorage.getItem("token");
-      await axios.delete(`${HTTP_BACKEND_URL}/room/${roomToDelete.id}`, {
+      await axios.delete(`${HTTP_BACKEND_URL}/room/${roomToDelete.id}/delete`, {
         headers: {
           Authorization: `${token}`,
         },
