@@ -209,14 +209,7 @@ export default function RoomsPage() {
         )}
 
         {isJoinModalOpen && (
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50"
-            onClick={() => {
-              setIsJoinModalOpen(false);
-              setJoinCode("");
-              setJoinError(null);
-            }}
-          >
+          <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50">
             <div className="bg-gray-800 rounded-lg p-6 w-full max-w-md mx-4 border border-gray-700 shadow-xl">
               <h3 className="text-xl font-semibold text-white mb-4">
                 Join Room
@@ -261,52 +254,47 @@ export default function RoomsPage() {
 
         {/* Rooms Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {rooms
-            .slice(0)
-            .reverse()
-            .map((room) => (
-              <div
-                key={room.id}
-                className="p-6 bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-700/50 
+          {rooms.map((room) => (
+            <div
+              key={room.id}
+              className="p-6 bg-gray-800/50 backdrop-blur-sm rounded-lg border border-gray-700/50 
                 hover:border-gray-600/50 transition-colors"
-              >
-                <div className="flex justify-between items-start mb-4">
-                  <h3 className="text-xl font-medium text-white">
-                    {room.name}
-                  </h3>
-                  {/* copy share code to clipboard */}
+            >
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="text-xl font-medium text-white">{room.name}</h3>
+                {/* copy share code to clipboard */}
 
-                  {room.isOwner && (
-                    <div className="gap-5 flex">
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText(room.shareCode);
-                        }}
-                        className="text-gray-400/50 hover:text-blue-400 transition-colors"
-                      >
-                        <Share2 />
-                      </button>
-                      <button
-                        onClick={() => initiateDelete(room)}
-                        className="text-gray-400/50 hover:text-red-400 transition-colors"
-                      >
-                        <Trash />
-                      </button>
-                    </div>
-                  )}
-                </div>
-                <p className="text-gray-400 text-sm mb-4">
-                  Created {new Date(room.createdAt).toLocaleDateString()}
-                </p>
-                <Link
-                  href={`/room/${room.id}`}
-                  className="inline-block px-4 py-2 bg-blue-600/20 text-blue-400 rounded-lg 
-                  hover:bg-blue-600/30 transition-colors text-sm"
-                >
-                  Join Room →
-                </Link>
+                {room.isOwner && (
+                  <div className="gap-5 flex">
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(room.shareCode);
+                      }}
+                      className="text-gray-400/50 hover:text-blue-400 transition-colors"
+                    >
+                      <Share2 />
+                    </button>
+                    <button
+                      onClick={() => initiateDelete(room)}
+                      className="text-gray-400/50 hover:text-red-400 transition-colors"
+                    >
+                      <Trash />
+                    </button>
+                  </div>
+                )}
               </div>
-            ))}
+              <p className="text-gray-400 text-sm mb-4">
+                Created {new Date(room.createdAt).toLocaleDateString()}
+              </p>
+              <Link
+                href={`/room/${room.id}`}
+                className="inline-block px-4 py-2 bg-blue-600/20 text-blue-400 rounded-lg 
+                  hover:bg-blue-600/30 transition-colors text-sm"
+              >
+                Join Room →
+              </Link>
+            </div>
+          ))}
         </div>
 
         {/* Empty State */}
