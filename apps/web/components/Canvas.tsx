@@ -154,7 +154,7 @@ export default function Canvas({
           transition-opacity duration-200`}
       >
         <MenuOption onClick={() => game?.undo()}>↩️ Undo</MenuOption>
-        <MenuOption onClick={() => game?.recenterCanvas()}>⌘ center</MenuOption>
+        {/* <MenuOption onClick={() => game?.recenterCanvas()}>⌘ center</MenuOption> */}
         <MenuOption onClick={() => game?.redo()}>↪️ Redo</MenuOption>
       </div>
     </main>

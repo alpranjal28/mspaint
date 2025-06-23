@@ -73,103 +73,63 @@ export class Game {
     this.socket = socket;
     this.selectedTool = selectedTool;
     this.roomId = roomId;
-    this.resizeObserver = new ResizeObserver(this.resizeCanvas);
+    this.resizeObserver = new ResizeObserver(this.handleResize);
     this.resizeObserver.observe(canvas);
-
     this.init();
     this.initSocket();
     this.initEvents();
   }
 
-  public setTool(tool: Tools): void {
-    // Finalize text if we're switching from text tool
-    if (this.selectedTool === Tools.Text && this.textArea) {
-      this.finalizeTextInput();
-    }
-
-    this.selectedTool = tool;
-
-    // Update cursor based on selected tool
-    this.canvas.style.cursor = tool === Tools.Hand ? "grab" : "crosshair";
-
-    if (tool !== Tools.Select) {
-      this.selection.selectedShape = undefined;
-      this.selection.selectedShapes = [];
-      this.selection.isMultiSelect = false;
-    }
-  }
-
+  // --- Initialization ---
   private async init() {
     const shapes = await getExistingShapes(this.roomId);
-
-    if (shapes && shapes.length > 0) {
-      // Sort shapes by timestamp if available
-      const sortedShapes = shapes.sort((a, b) => {
-        const timeA = a.timestamp || 0;
-        const timeB = b.timestamp || 0;
-        return timeA - timeB;
-      });
-
-      // Process shapes in chronological order
-      const activeShapes = new Map<string, Payload>();
-
-      sortedShapes.forEach((shape) => {
-        if (shape.function === "erase") {
-          // Remove erased shapes
-          activeShapes.delete(shape.id);
-        } else if (shape.function === "draw" || shape.function === "move") {
-          // Add or update shapes
-          activeShapes.set(shape.id, shape);
-        }
-      });
-
-      // Convert map to array
-      this.tempShapes = Array.from(activeShapes.values());
-      console.log("Initialized with filtered shapes:", this.tempShapes);
-    } else {
-      this.tempShapes = [];
-    }
-
+    this.tempShapes = this.processShapes(shapes);
     this.render();
+  }
+
+  private processShapes(shapes: Payload[] = []): Payload[] {
+    if (!shapes.length) return [];
+    const sorted = shapes.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    const active = new Map<string, Payload>();
+    sorted.forEach((shape) => {
+      if (shape.function === "erase") active.delete(shape.id);
+      else if (shape.function === "draw" || shape.function === "move") active.set(shape.id, shape);
+    });
+    return Array.from(active.values());
   }
 
   private initSocket() {
     this.socket.onmessage = (e) => {
       const data = JSON.parse(e.data);
-
       if (data.type === "broadcasted") {
         try {
           const message = JSON.parse(data.message);
-          console.log("initSocket message = ", message);
-
-          switch (message.function) {
-            case "erase":
-              console.log("erase shape with ID:", message.id);
-              this.tempShapes = this.tempShapes.filter(
-                (shape) => shape.id !== message.id
-              );
-              break;
-            case "draw":
-              if (!this.tempShapes.some((shape) => shape.id === message.id)) {
-                console.log("drawing new shape:", message);
-                this.tempShapes.push(message);
-              }
-              break;
-            case "move":
-              const shapeToMove = this.tempShapes.findIndex(
-                (s) => s.id === message.id
-              );
-              if (shapeToMove !== -1 && message.shape) {
-                this.tempShapes[shapeToMove]!.shape = message.shape;
-              }
-              break;
-          }
-          this.render();
+          this.handleSocketMessage(message);
         } catch (error) {
           console.error("Error parsing socket message:", error);
         }
       }
     };
+  }
+
+  private handleSocketMessage(message: any) {
+    switch (message.function) {
+      case "erase":
+        this.tempShapes = this.tempShapes.filter((shape) => shape.id !== message.id);
+        break;
+      case "draw":
+        if (!this.tempShapes.some((shape) => shape.id === message.id)) {
+          this.tempShapes.push(message);
+        }
+        break;
+      case "move":
+        const idx = this.tempShapes.findIndex((s) => s.id === message.id);
+        if (idx !== -1 && message.shape) {
+          this.tempShapes[idx]!.shape = message.shape;
+        }
+        break;
+    }
+    this.render();
   }
 
   private initEvents() {
@@ -180,16 +140,212 @@ export class Game {
     document.addEventListener("keydown", this.onKeyDown);
   }
 
-  private resizeCanvas = (entries: ResizeObserverEntry[]) => {
+  // --- Resize Handling ---
+  private handleResize = (entries: ResizeObserverEntry[]) => {
     const entry = entries[0];
     if (!entry) return;
-
     const { width, height } = entry.contentRect;
     this.canvas.width = width;
     this.canvas.height = height;
-
     this.render();
   };
+
+  // --- Tool Management ---
+  public setTool(tool: Tools): void {
+    if (this.selectedTool === Tools.Text && this.textArea) {
+      this.finalizeTextInput();
+    }
+    this.selectedTool = tool;
+    this.canvas.style.cursor = tool === Tools.Hand ? "grab" : "crosshair";
+    if (tool !== Tools.Select) {
+      this.selection.selectedShape = undefined;
+      this.selection.selectedShapes = [];
+      this.selection.isMultiSelect = false;
+    }
+  }
+
+  // --- Shape Manipulation ---
+  private updateShapePosition(shape: Payload, pos: { x: number; y: number }) {
+    const { shape: s } = shape;
+    const current = this.getShapePosition(shape);
+    const dx = pos.x - current.x;
+    const dy = pos.y - current.y;
+    switch (s.type) {
+      case "rect":
+      case "text":
+        s.x = pos.x;
+        s.y = pos.y;
+        break;
+      case "circle":
+        s.centerX = pos.x;
+        s.centerY = pos.y;
+        break;
+      case "line":
+        s.x = pos.x;
+        s.y = pos.y;
+        s.x2 += dx;
+        s.y2 += dy;
+        break;
+      case "pencil":
+        if (s.points) {
+          s.points = s.points.map((pt) => ({ x: pt.x + dx, y: pt.y + dy }));
+        }
+        break;
+    }
+    shape.timestamp = Date.now();
+    shape.function = "move";
+  }
+
+  private moveShape(payload: Payload, x: number, y: number): void {
+    this.updateShapePosition(payload, { x, y });
+    this.animate();
+  }
+
+  // --- History Management ---
+  private addToHistory(action: Action): void {
+    this.history.push(action);
+    this.redoStack = [];
+    if (this.history.length > this.maxHistorySize) {
+      this.history.shift();
+    }
+  }
+
+  public undo(): void {
+    if (this.history.length === 0) return;
+    const action = this.history.pop()!;
+    this.redoStack.push(action);
+    this.applyHistoryAction(action, true);
+    this.render();
+  }
+
+  public redo(): void {
+    if (this.redoStack.length === 0) return;
+    const action = this.redoStack.pop()!;
+    this.history.push(action);
+    this.applyHistoryAction(action, false);
+    this.render();
+  }
+
+  private applyHistoryAction(action: Action, isUndo: boolean) {
+    switch (action.type) {
+      case "draw":
+        if (isUndo) {
+          this.tempShapes = this.tempShapes.filter((shape) => shape.id !== action.payload.id);
+          this.sendShapeMessage("erase", action.payload.id);
+        } else {
+          const drawPayload = { ...action.payload, timestamp: Date.now() };
+          this.tempShapes.push(drawPayload);
+          this.sendShapeMessage(drawPayload);
+        }
+        break;
+      case "erase":
+        if (isUndo) {
+          this.tempShapes.push({ ...action.payload, timestamp: Date.now() });
+          this.sendShapeMessage(action.payload);
+        } else {
+          this.tempShapes = this.tempShapes.filter((shape) => shape.id !== action.payload.id);
+          this.sendShapeMessage("erase", action.payload.id);
+        }
+        break;
+      case "move":
+        const shape = this.tempShapes.find((s) => s.id === action.payload.id);
+        if (shape) {
+          const pos = isUndo ? action.oldPosition : action.newPosition;
+          if (pos) {
+            this.updateShapePosition(shape, pos);
+            this.sendShapeMessage(shape);
+          }
+        }
+        break;
+    }
+  }
+
+  private sendShapeMessage(payload: any, id?: string) {
+    let message;
+    if (typeof payload === "string" && id) {
+      message = { function: payload, id, timestamp: Date.now() };
+    } else {
+      message = payload;
+    }
+    this.socket.send(
+      JSON.stringify({
+        type: "chat",
+        roomId: this.roomId,
+        message: JSON.stringify(message),
+      })
+    );
+  }
+
+  // --- Resize Handling ---
+  private resizeShape(
+    payload: Payload,
+    x: number,
+    y: number,
+    handle: string,
+    startX: number,
+    startY: number
+  ): void {
+    if (!payload || !payload.shape) return;
+    const { shape } = payload;
+    const dx = x - startX;
+    const dy = y - startY;
+    if (shape.type === "rect") {
+      this.handleRectResize(shape, dx, dy, handle);
+      if (shape.width < 0) {
+        shape.x += shape.width;
+        shape.width = Math.abs(shape.width);
+      }
+      if (shape.height < 0) {
+        shape.y += shape.height;
+        shape.height = Math.abs(shape.height);
+      }
+    } else if (shape.type === "text") {
+      shape.x += dx;
+      shape.y += dy;
+    }
+    payload.timestamp = Date.now();
+    payload.function = "move";
+    this.render();
+  }
+
+  private handleRectResize(shape: any, dx: number, dy: number, handle: string) {
+    switch (handle) {
+      case "nw":
+        shape.x += dx;
+        shape.y += dy;
+        shape.width -= dx;
+        shape.height -= dy;
+        break;
+      case "ne":
+        shape.y += dy;
+        shape.width += dx;
+        shape.height -= dy;
+        break;
+      case "sw":
+        shape.x += dx;
+        shape.width -= dx;
+        shape.height += dy;
+        break;
+      case "se":
+        shape.width += dx;
+        shape.height += dy;
+        break;
+      case "n":
+        shape.y += dy;
+        shape.height -= dy;
+        break;
+      case "s":
+        shape.height += dy;
+        break;
+      case "w":
+        shape.x += dx;
+        shape.width -= dx;
+        break;
+      case "e":
+        shape.width += dx;
+        break;
+    }
+  }
 
   private getCursorForHandle(handle: string): string {
     switch (handle) {
@@ -271,101 +427,7 @@ export class Game {
     return "";
   }
 
-  private resizeShape(
-    payload: Payload,
-    x: number,
-    y: number,
-    handle: string,
-    startX: number,
-    startY: number
-  ): void {
-    if (!payload || !payload.shape) return;
-
-    const { shape } = payload;
-    const dx = x - startX;
-    const dy = y - startY;
-
-    if (shape.type === "rect") {
-      switch (handle) {
-        case "nw":
-          shape.x += dx;
-          shape.y += dy;
-          shape.width -= dx;
-          shape.height -= dy;
-          break;
-        case "ne":
-          shape.y += dy;
-          shape.width += dx;
-          shape.height -= dy;
-          break;
-        case "sw":
-          shape.x += dx;
-          shape.width -= dx;
-          shape.height += dy;
-          break;
-        case "se":
-          shape.width += dx;
-          shape.height += dy;
-          break;
-        case "n":
-          shape.y += dy;
-          shape.height -= dy;
-          break;
-        case "s":
-          shape.height += dy;
-          break;
-        case "w":
-          shape.x += dx;
-          shape.width -= dx;
-          break;
-        case "e":
-          shape.width += dx;
-          break;
-      }
-
-      // Ensure width and height are positive
-      if (shape.width < 0) {
-        shape.x += shape.width;
-        shape.width = Math.abs(shape.width);
-      }
-      if (shape.height < 0) {
-        shape.y += shape.height;
-        shape.height = Math.abs(shape.height);
-      }
-    } else if (shape.type === "text") {
-      // For text, we only allow moving it, not resizing
-      // Just update the position
-      switch (handle) {
-        case "nw":
-        case "n":
-        case "ne":
-        case "e":
-        case "se":
-        case "s":
-        case "sw":
-        case "w":
-          shape.x += dx;
-          shape.y += dy;
-          break;
-      }
-    }
-
-    // Update timestamp
-    payload.timestamp = Date.now();
-    payload.function = "move"; // Mark as a move action
-
-    this.render();
-  }
-
-  public recenterCanvas() {
-    this.target.x = 0;
-    this.target.y = 0;
-    this.target.scale = 1;
-
-    // Start animation to smoothly transition to centered view
-    this.animate();
-  }
-
+  // --- Mouse Events ---
   private getMousePos(e: MouseEvent) {
     const rect = this.canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -378,7 +440,6 @@ export class Game {
     };
   }
 
-  // mouse events
   private calculateShapeOffset(
     payload: Payload,
     pos: { x: number; y: number }
@@ -794,225 +855,72 @@ export class Game {
     }
   };
 
-  // Add this property to the Game class
-
-  private findShapeAtPosition(pos: {
-    x: number;
-    y: number;
-  }): Payload | undefined {
-    // First check if any currently selected shape is at this position
-    // This ensures selected elements remain interactable even when overlapped
-    for (const selectedShape of this.selection.selectedShapes) {
-      if (this.isPointInShape(pos, selectedShape)) {
-        return selectedShape;
-      }
+  // --- Event Handlers ---
+  private onWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    const pos = this.getMousePos(e);
+    if (e.ctrlKey) {
+      const delta = e.deltaY > 0 ? 0.95 : 1.05;
+      const newScale = this.target.scale * delta;
+      this.target.scale = Math.min(Math.max(newScale, 0.1), 5);
+      const mouseX = e.clientX - this.canvas.getBoundingClientRect().left;
+      const mouseY = e.clientY - this.canvas.getBoundingClientRect().top;
+      const prevWorldX = (mouseX - this.current.x) / this.current.scale;
+      const prevWorldY = (mouseY - this.current.y) / this.current.scale;
+      const newWorldX = (mouseX - this.target.x) / this.target.scale;
+      const newWorldY = (mouseY - this.target.y) / this.target.scale;
+      this.target.x += (newWorldX - prevWorldX) * this.target.scale;
+      this.target.y += (newWorldY - prevWorldY) * this.target.scale;
+    } else {
+      this.target.y += -e.deltaY;
+      this.target.x += -e.deltaX;
+      this.target.scale = this.current.scale;
     }
-
-    // If no selected shape is at this position, find all other shapes
-    const shapesAtPosition: Payload[] = [];
-
-    for (let i = this.tempShapes.length - 1; i >= 0; i--) {
-      const shape = this.tempShapes[i];
-      if (!shape || !shape.shape) continue;
-
-      // Skip shapes that are already selected (we checked them above)
-      if (this.selection.selectedShapes.some((s) => s.id === shape.id)) {
-        continue;
-      }
-
-      if (this.isPointInShape(pos, shape)) {
-        shapesAtPosition.push(shape);
-      }
-    }
-
-    if (shapesAtPosition.length === 0) {
-      this.lastSelectedShapeIndex = -1;
-      return undefined;
-    }
-
-    // If we have a previously selected shape, find its index
-    const currentIndex =
-      this.lastSelectedShapeIndex >= 0 &&
-      this.lastSelectedShapeIndex < shapesAtPosition.length
-        ? this.lastSelectedShapeIndex
-        : -1;
-
-    // Select the next shape in the list (or the first if none was selected)
-    this.lastSelectedShapeIndex = (currentIndex + 1) % shapesAtPosition.length;
-
-    return shapesAtPosition[this.lastSelectedShapeIndex];
-  }
-
-  private isPointInShape(
-    point: { x: number; y: number },
-    payload: Payload
-  ): boolean {
-    if (!payload || !payload.shape) return false;
-    const { shape } = payload;
-    const strokeWidth = 5; // Width for detecting clicks near edges
-
-    switch (shape.type) {
-      case "rect": {
-        // Check if point is near any edge of the rectangle
-        const nearLeft = Math.abs(point.x - shape.x) <= strokeWidth;
-        const nearRight =
-          Math.abs(point.x - (shape.x + shape.width)) <= strokeWidth;
-        const nearTop = Math.abs(point.y - shape.y) <= strokeWidth;
-        const nearBottom =
-          Math.abs(point.y - (shape.y + shape.height)) <= strokeWidth;
-
-        const withinX = point.x >= shape.x && point.x <= shape.x + shape.width;
-        const withinY = point.y >= shape.y && point.y <= shape.y + shape.height;
-
-        // Return true if point is near any edge and within the bounds
-        return (
-          ((nearLeft || nearRight) && withinY) ||
-          ((nearTop || nearBottom) && withinX)
-        );
-      }
-
-      case "circle": {
-        // Check if point is near the circle's circumference
-        const dx = point.x - shape.centerX;
-        const dy = point.y - shape.centerY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        return Math.abs(distance - shape.radius) <= strokeWidth;
-      }
-
-      case "line": {
-        const dx = shape.x2 - shape.x;
-        const dy = shape.y2 - shape.y;
-        const length = Math.sqrt(dx * dx + dy * dy);
-
-        if (length === 0) return false;
-
-        const t = Math.max(
-          0,
-          Math.min(
-            1,
-            ((point.x - shape.x) * dx + (point.y - shape.y) * dy) /
-              (length * length)
-          )
-        );
-
-        const projX = shape.x + t * dx;
-        const projY = shape.y + t * dy;
-
-        return Math.hypot(point.x - projX, point.y - projY) <= strokeWidth;
-      }
-
-      case "pencil": {
-        // For pencil, check if point is near any segment of the path
-        for (let i = 1; i < shape.points.length; i++) {
-          const p1 = shape.points[i - 1];
-          const p2 = shape.points[i];
-          if (!p1 || !p2) continue;
-
-          const dx = p2.x - p1.x;
-          const dy = p2.y - p1.y;
-          const length = Math.sqrt(dx * dx + dy * dy);
-
-          if (length === 0) continue;
-
-          const t = Math.max(
-            0,
-            Math.min(
-              1,
-              ((point.x - p1.x) * dx + (point.y - p1.y) * dy) /
-                (length * length)
-            )
-          );
-
-          const projX = p1.x + t * dx;
-          const projY = p1.y + t * dy;
-
-          if (Math.hypot(point.x - projX, point.y - projY) <= strokeWidth) {
-            return true;
-          }
-        }
-        return false;
-      }
-
-      case "text": {
-        // For text, check if point is anywhere inside the text box
-        const text = shape.text || "";
-        const lines = text.split("\n");
-        const lineHeight = 24; // 24px line height
-
-        // Calculate max width for bounding box
-        let maxWidth = 0;
-        lines.forEach((line) => {
-          const width = this.ctx.measureText(line).width;
-          maxWidth = Math.max(maxWidth, width);
-        });
-
-        const textHeight = lines.length * lineHeight;
-
-        // Check if point is anywhere inside the text box
-        return (
-          point.x >= shape.x &&
-          point.x <= shape.x + maxWidth &&
-          point.y >= shape.y &&
-          point.y <= shape.y + textHeight
-        );
-      }
-    }
-  }
-
-  private getShapePosition(payload: Payload): { x: number; y: number } {
-    const { shape } = payload;
-    switch (shape.type) {
-      case "circle":
-        return { x: shape.centerX, y: shape.centerY };
-      case "rect":
-      case "line":
-      case "text":
-        return { x: shape.x, y: shape.y };
-      case "pencil":
-        return shape.points?.[0] ? { x: shape.points[0].x, y: shape.points[0].y } : { x: 0, y: 0 };
-      default:
-        return { x: 0, y: 0 };
-    }
-  }
-
-  private setShapePosition(payload: Payload, position: { x: number; y: number }): void {
-    const { shape } = payload;
-    const currentPos = this.getShapePosition(payload);
-    const dx = position.x - currentPos.x;
-    const dy = position.y - currentPos.y;
-
-    switch (shape.type) {
-      case "rect":
-      case "text":
-        shape.x = position.x;
-        shape.y = position.y;
-        break;
-      case "circle":
-        shape.centerX = position.x;
-        shape.centerY = position.y;
-        break;
-      case "line":
-        shape.x = position.x;
-        shape.y = position.y;
-        shape.x2 += dx;
-        shape.y2 += dy;
-        break;
-      case "pencil":
-        if (shape.points) {
-          shape.points = shape.points.map(point => ({
-            x: point.x + dx,
-            y: point.y + dy
-          }));
-        }
-        break;
-    }
-    payload.timestamp = Date.now();
-    payload.function = "move";
-  }
-
-  private moveShape(payload: Payload, x: number, y: number): void {
-    this.setShapePosition(payload, { x, y });
     this.animate();
+  };
+
+  private animate = () => {
+    const lerp = (a: number, b: number) => a + (b - a) * 0.25;
+    this.current.scale = lerp(this.current.scale, this.target.scale);
+    this.current.x = lerp(this.current.x, this.target.x);
+    this.current.y = lerp(this.current.y, this.target.y);
+    this.render();
+    const dx = Math.abs(this.current.x - this.target.x);
+    const dy = Math.abs(this.current.y - this.target.y);
+    const ds = Math.abs(this.current.scale - this.target.scale);
+    if (
+      dx > 0.1 ||
+      dy > 0.1 ||
+      ds > 0.001 ||
+      this.drawing.active ||
+      this.canvasDrag.active
+    ) {
+      this.frame = requestAnimationFrame(this.animate);
+    }
+  };
+
+  private eraseShape(tempShape: Payload) {
+    const index = this.tempShapes.indexOf(tempShape);
+    if (index !== -1) {
+      this.addToHistory({
+        type: "erase",
+        payload: tempShape,
+      });
+      this.tempShapes.splice(index, 1);
+      const eraseMessage = {
+        function: "erase",
+        id: tempShape.id,
+        timestamp: Date.now(),
+      };
+      this.socket.send(
+        JSON.stringify({
+          type: "chat",
+          roomId: this.roomId,
+          message: JSON.stringify(eraseMessage),
+        })
+      );
+      this.render();
+    }
   }
 
   private isShapeInSelectionBox(
@@ -1023,33 +931,23 @@ export class Game {
     endY: number
   ): boolean {
     if (!payload || !payload.shape) return false;
-
     const { shape } = payload;
-
     switch (shape.type) {
-      case "rect": {
-        // Check if the rectangle is completely inside the selection box
+      case "rect":
         return (
           shape.x >= startX &&
           shape.x + shape.width <= endX &&
           shape.y >= startY &&
           shape.y + shape.height <= endY
         );
-      }
-
-      case "circle": {
-        // Check if the circle is completely inside the selection box
-        // The circle is completely inside if its center plus radius in all directions is inside
+      case "circle":
         return (
           shape.centerX - shape.radius >= startX &&
           shape.centerX + shape.radius <= endX &&
           shape.centerY - shape.radius >= startY &&
           shape.centerY + shape.radius <= endY
         );
-      }
-
-      case "line": {
-        // Check if both endpoints are inside the selection box
+      case "line":
         return (
           shape.x >= startX &&
           shape.x <= endX &&
@@ -1060,12 +958,8 @@ export class Game {
           shape.y2 >= startY &&
           shape.y2 <= endY
         );
-      }
-
-      case "pencil": {
+      case "pencil":
         if (!shape.points || shape.points.length === 0) return false;
-
-        // Check if all points are inside the selection box
         for (const point of shape.points) {
           if (
             point.x < startX ||
@@ -1073,28 +967,20 @@ export class Game {
             point.y < startY ||
             point.y > endY
           ) {
-            return false; // If any point is outside, the shape is not completely inside
+            return false;
           }
         }
-        return true; // All points are inside
-      }
-
+        return true;
       case "text": {
-        // For text, check if the entire bounding box is inside the selection box
         const text = shape.text || "";
         const lines = text.split("\n");
-        const lineHeight = 24; // 24px line height
-
-        // Calculate max width for bounding box
+        const lineHeight = 24;
         let maxWidth = 0;
-        lines.forEach((line) => {
+        lines.forEach((line: string) => {
           const width = this.ctx.measureText(line).width;
           maxWidth = Math.max(maxWidth, width);
         });
-
         const textHeight = lines.length * lineHeight;
-
-        // Check if the entire text box is inside the selection box
         return (
           shape.x >= startX &&
           shape.x + maxWidth <= endX &&
@@ -1102,214 +988,13 @@ export class Game {
           shape.y + textHeight <= endY
         );
       }
-
       default:
         return false;
     }
   }
 
-  private doLinesIntersect(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    x3: number,
-    y3: number,
-    x4: number,
-    y4: number
-  ): boolean {
-    // Calculate the direction of the lines
-    const d1x = x2 - x1;
-    const d1y = y2 - y1;
-    const d2x = x4 - x3;
-    const d2y = y4 - y3;
-
-    // Calculate the determinant
-    const det = d1x * d2y - d1y * d2x;
-
-    // If determinant is zero, lines are parallel
-    if (det === 0) return false;
-
-    // Calculate the parameters for the intersection point
-    const dx = x3 - x1;
-    const dy = y3 - y1;
-
-    const t1 = (dx * d2y - dy * d2x) / det;
-    const t2 = (dx * d1y - dy * d1x) / det;
-
-    // Check if the intersection point is within both line segments
-    return t1 >= 0 && t1 <= 1 && t2 >= 0 && t2 <= 1;
-  }
-
-  private eraseShape(tempShape: Payload) {
-    const index = this.tempShapes.indexOf(tempShape);
-    if (index !== -1) {
-      this.addToHistory({
-        type: "erase",
-        payload: tempShape,
-      });
-
-      this.tempShapes.splice(index, 1);
-
-      // erase shape message for server
-      const eraseMessage = {
-        function: "erase",
-        id: tempShape.id,
-        timestamp: Date.now(),
-      };
-
-      this.socket.send(
-        JSON.stringify({
-          type: "chat",
-          roomId: this.roomId,
-          message: JSON.stringify(eraseMessage),
-        })
-      );
-
-      this.render();
-    }
-  }
-
-  public undo(): void {
-    if (this.history.length === 0) return;
-
-    const action = this.history.pop()!;
-    this.redoStack.push(action);
-
-    switch (action.type) {
-      case "draw":
-        this.tempShapes = this.tempShapes.filter(
-          (shape) => shape.id !== action.payload.id
-        );
-        this.socket.send(JSON.stringify({
-          type: "chat",
-          roomId: this.roomId,
-          message: JSON.stringify({
-            function: "erase",
-            id: action.payload.id,
-            timestamp: Date.now()
-          })
-        }));
-        break;
-
-      case "erase":
-        this.tempShapes.push({ ...action.payload, timestamp: Date.now() });
-        this.socket.send(JSON.stringify({
-          type: "chat",
-          roomId: this.roomId,
-          message: JSON.stringify(action.payload)
-        }));
-        break;
-
-      case "move":
-        const shapeToUndo = this.tempShapes.find(s => s.id === action.payload.id);
-        if (shapeToUndo && action.oldPosition) {
-          this.setShapePosition(shapeToUndo, action.oldPosition);
-          this.socket.send(JSON.stringify({
-            type: "chat",
-            roomId: this.roomId,
-            message: JSON.stringify(shapeToUndo)
-          }));
-        }
-        break;
-    }
-
-    this.render();
-  }
-
-  public redo(): void {
-    if (this.redoStack.length === 0) return;
-
-    const action = this.redoStack.pop()!;
-    this.history.push(action);
-
-    switch (action.type) {
-      case "draw":
-        const drawPayload = { ...action.payload, timestamp: Date.now() };
-        this.tempShapes.push(drawPayload);
-        this.socket.send(JSON.stringify({
-          type: "chat",
-          roomId: this.roomId,
-          message: JSON.stringify(drawPayload)
-        }));
-        break;
-
-      case "erase":
-        this.tempShapes = this.tempShapes.filter(
-          (shape) => shape.id !== action.payload.id
-        );
-        this.socket.send(JSON.stringify({
-          type: "chat",
-          roomId: this.roomId,
-          message: JSON.stringify({
-            function: "erase",
-            id: action.payload.id,
-            timestamp: Date.now()
-          })
-        }));
-        break;
-
-      case "move":
-        const shapeToRedo = this.tempShapes.find(s => s.id === action.payload.id);
-        if (shapeToRedo && action.newPosition) {
-          this.setShapePosition(shapeToRedo, action.newPosition);
-          this.socket.send(JSON.stringify({
-            type: "chat",
-            roomId: this.roomId,
-            message: JSON.stringify(shapeToRedo)
-          }));
-        }
-        break;
-    }
-
-    this.render();
-  }
-
-  private addToHistory(action: Action): void {
-    this.history.push(action);
-    this.redoStack = [];
-
-    if (this.history.length > this.maxHistorySize) {
-      this.history.shift();
-    }
-  }
-
-
-
-  private onWheel = (e: WheelEvent) => {
-    e.preventDefault();
-    const pos = this.getMousePos(e);
-
-    if (e.ctrlKey) {
-      const delta = e.deltaY > 0 ? 0.95 : 1.05;
-      const newScale = this.target.scale * delta;
-      this.target.scale = Math.min(Math.max(newScale, 0.1), 5);
-
-      // Convert mouse position to world space before scaling
-      const mouseX = e.clientX - this.canvas.getBoundingClientRect().left;
-      const mouseY = e.clientY - this.canvas.getBoundingClientRect().top;
-
-      // Calculate how the world position under the mouse changes
-      const prevWorldX = (mouseX - this.current.x) / this.current.scale;
-      const prevWorldY = (mouseY - this.current.y) / this.current.scale;
-      const newWorldX = (mouseX - this.target.x) / this.target.scale;
-      const newWorldY = (mouseY - this.target.y) / this.target.scale;
-
-      // Adjust target position to keep the world position under the mouse
-      this.target.x += (newWorldX - prevWorldX) * this.target.scale;
-      this.target.y += (newWorldY - prevWorldY) * this.target.scale;
-    } else {
-      this.target.y += -e.deltaY;
-      this.target.x += -e.deltaX;
-      this.target.scale = this.current.scale;
-    }
-
-    this.animate();
-  };
-
   private createShape(): Shapes | null {
     const { startX, startY, lastX, lastY } = this.drawing;
-
     switch (this.selectedTool) {
       case Tools.Rect:
         return {
@@ -1351,34 +1036,7 @@ export class Game {
     return null;
   }
 
-  private animate = () => {
-    // lerp => determines how quickly the current value approaches the target value
-    const lerp = (a: number, b: number) => a + (b - a) * 0.25;
-    // Higher values (closer to 1.0) make the movement faster and more responsive but less smooth
-    // Lower values (closer to 0.0) make the movement slower and smoother but less responsive
-
-    this.current.scale = lerp(this.current.scale, this.target.scale);
-    this.current.x = lerp(this.current.x, this.target.x);
-    this.current.y = lerp(this.current.y, this.target.y);
-
-    this.render();
-
-    const dx = Math.abs(this.current.x - this.target.x);
-    const dy = Math.abs(this.current.y - this.target.y);
-    const ds = Math.abs(this.current.scale - this.target.scale);
-
-    // Continue animation if there's movement, drawing is active, or hand tool is dragging
-    if (
-      dx > 0.1 ||
-      dy > 0.1 ||
-      ds > 0.001 ||
-      this.drawing.active ||
-      this.canvasDrag.active
-    ) {
-      this.frame = requestAnimationFrame(this.animate);
-    }
-  };
-
+  // --- Rendering ---
   private drawShape(tempShape: Payload): void {
     if (tempShape.function === "draw" || tempShape.function === "move") {
       const { shape } = tempShape;
@@ -1650,6 +1308,7 @@ export class Game {
     }
   }
 
+  // --- Keyboard Events ---
   private onKeyDown = (e: KeyboardEvent) => {
     // Ctrl+Z for undo
     if (e.ctrlKey && e.key === "z") {
@@ -1667,6 +1326,7 @@ export class Game {
     }
   };
 
+  // --- Text Area Handling ---
   private createTextArea(x: number, y: number): void {
     // Remove any existing textarea
     this.removeTextArea();
@@ -1785,6 +1445,139 @@ export class Game {
       document.body.removeChild(this.textArea);
       this.textArea = null;
     }
+  }
+
+  // --- Helper Methods ---
+  private getShapePosition(payload: Payload): { x: number; y: number } {
+    const { shape } = payload;
+    switch (shape.type) {
+      case "circle":
+        return { x: shape.centerX, y: shape.centerY };
+      case "rect":
+      case "line":
+      case "text":
+        return { x: shape.x, y: shape.y };
+      case "pencil":
+        return shape.points?.[0] ? { x: shape.points[0].x, y: shape.points[0].y } : { x: 0, y: 0 };
+      default:
+        return { x: 0, y: 0 };
+    }
+  }
+
+  private findShapeAtPosition(pos: { x: number; y: number }): Payload | undefined {
+    // First check if any currently selected shape is at this position
+    for (const selectedShape of this.selection.selectedShapes) {
+      if (this.isPointInShape(pos, selectedShape)) {
+        return selectedShape;
+      }
+    }
+    // If no selected shape is at this position, find all other shapes
+    const shapesAtPosition: Payload[] = [];
+    for (let i = this.tempShapes.length - 1; i >= 0; i--) {
+      const shape = this.tempShapes[i];
+      if (!shape || !shape.shape) continue;
+      if (this.selection.selectedShapes.some((s) => s.id === shape.id)) {
+        continue;
+      }
+      if (this.isPointInShape(pos, shape)) {
+        shapesAtPosition.push(shape);
+      }
+    }
+    if (shapesAtPosition.length === 0) {
+      this.lastSelectedShapeIndex = -1;
+      return undefined;
+    }
+    const currentIndex =
+      this.lastSelectedShapeIndex >= 0 &&
+      this.lastSelectedShapeIndex < shapesAtPosition.length
+        ? this.lastSelectedShapeIndex
+        : -1;
+    this.lastSelectedShapeIndex = (currentIndex + 1) % shapesAtPosition.length;
+    return shapesAtPosition[this.lastSelectedShapeIndex];
+  }
+
+  private isPointInShape(point: { x: number; y: number }, payload: Payload): boolean {
+    if (!payload || !payload.shape) return false;
+    const { shape } = payload;
+    const strokeWidth = 5;
+    switch (shape.type) {
+      case "rect": {
+        const nearLeft = Math.abs(point.x - shape.x) <= strokeWidth;
+        const nearRight = Math.abs(point.x - (shape.x + shape.width)) <= strokeWidth;
+        const nearTop = Math.abs(point.y - shape.y) <= strokeWidth;
+        const nearBottom = Math.abs(point.y - (shape.y + shape.height)) <= strokeWidth;
+        const withinX = point.x >= shape.x && point.x <= shape.x + shape.width;
+        const withinY = point.y >= shape.y && point.y <= shape.y + shape.height;
+        return (
+          ((nearLeft || nearRight) && withinY) ||
+          ((nearTop || nearBottom) && withinX)
+        );
+      }
+      case "circle": {
+        const dx = point.x - shape.centerX;
+        const dy = point.y - shape.centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        return Math.abs(distance - shape.radius) <= strokeWidth;
+      }
+      case "line": {
+        const dx = shape.x2 - shape.x;
+        const dy = shape.y2 - shape.y;
+        const length = Math.sqrt(dx * dx + dy * dy);
+        if (length === 0) return false;
+        const t = Math.max(
+          0,
+          Math.min(
+            1,
+            ((point.x - shape.x) * dx + (point.y - shape.y) * dy) / (length * length)
+          )
+        );
+        const projX = shape.x + t * dx;
+        const projY = shape.y + t * dy;
+        return Math.hypot(point.x - projX, point.y - projY) <= strokeWidth;
+      }
+      case "pencil": {
+        for (let i = 1; i < shape.points.length; i++) {
+          const p1 = shape.points[i - 1];
+          const p2 = shape.points[i];
+          if (!p1 || !p2) continue;
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const length = Math.sqrt(dx * dx + dy * dy);
+          if (length === 0) continue;
+          const t = Math.max(
+            0,
+            Math.min(
+              1,
+              ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / (length * length)
+            )
+          );
+          const projX = p1.x + t * dx;
+          const projY = p1.y + t * dy;
+          if (Math.hypot(point.x - projX, point.y - projY) <= strokeWidth) {
+            return true;
+          }
+        }
+        return false;
+      }
+      case "text": {
+        const text = shape.text || "";
+        const lines = text.split("\n");
+        const lineHeight = 24;
+        let maxWidth = 0;
+        lines.forEach((line: string) => {
+          const width = this.ctx.measureText(line).width;
+          maxWidth = Math.max(maxWidth, width);
+        });
+        const textHeight = lines.length * lineHeight;
+        return (
+          point.x >= shape.x &&
+          point.x <= shape.x + maxWidth &&
+          point.y >= shape.y &&
+          point.y <= shape.y + textHeight
+        );
+      }
+    }
+    return false;
   }
 
   cleanup() {
