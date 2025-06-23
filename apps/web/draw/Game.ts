@@ -1589,4 +1589,11 @@ export class Game {
     document.removeEventListener("keydown", this.onKeyDown);
     this.removeTextArea();
   }
+
+  public recenterCanvas() {
+    this.target.x = 0;
+    this.target.y = 0;
+    this.target.scale = 1;
+    this.animate();
+  }
 }
