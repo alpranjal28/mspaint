@@ -29,7 +29,6 @@ export default function RoomsPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
   const [roomToLeave, setRoomToLeave] = useState<Room | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -59,8 +58,6 @@ export default function RoomsPage() {
       setRooms(data.rooms);
     } catch (err) {
       handleError(err, "Failed to load rooms");
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -159,12 +156,35 @@ export default function RoomsPage() {
     }
   };
 
-  const handleError = (err: unknown, defaultMessage: string) => {
+  const refreshToken = () => {
+    axios
+      .post(`${HTTP_BACKEND_URL}/refresh-token`, {}, { withCredentials: true })
+      .then((res) => {
+        const { token } = res.data;
+        localStorage.setItem("token", token);
+      })
+      .catch((err) => {
+        if (err.response?.status === 401) {
+          window.location.href = "/signin";
+        }
+      });
+  };
+
+  const handleError = async (err: unknown, defaultMessage: string) => {
     if (err instanceof AxiosError) {
       setError(err.response?.data?.message || defaultMessage);
       if (err.response?.status === 401) {
         // Handle unauthorized access
-        window.location.href = "/signin";
+        try {
+          refreshToken();
+          // Retry the original request
+          fetchRooms();
+        } catch (refreshError) {
+          setError("Session expired. Please sign in again.");
+          setTimeout(() => {
+            window.location.href = "/signin";
+          }, 2000);
+        }
       }
     } else {
       setError(defaultMessage);

@@ -65,6 +65,12 @@ app.post("/signup", async (req, res) => {
     const token = accessToken(createdUser.id, createdUser.email);
     const refToken = refreshToken(createdUser.id, createdUser.username);
 
+    res.cookie("refreshToken", refToken, {
+      httpOnly: true,
+      secure: true,
+      maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
+    });
+
     res.json({ username: createdUser.username, token });
 
     console.log("created user", createdUser);
