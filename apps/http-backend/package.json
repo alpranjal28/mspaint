@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@types/cors": "^2.8.17",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^4.21.2"
   },
@@ -19,6 +20,7 @@
     "@repo/common": "workspace:*",
     "@repo/db-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "@types/cookie-parser": "^1.4.9",
     "@types/express": "^5.0.0"
   },
   "keywords": [],
