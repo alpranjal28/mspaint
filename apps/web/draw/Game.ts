@@ -138,6 +138,10 @@ export class Game {
     this.canvas.addEventListener("mouseup", this.onMouseUp);
     this.canvas.addEventListener("wheel", this.onWheel);
     document.addEventListener("keydown", this.onKeyDown);
+    // Touch support
+    this.canvas.addEventListener("touchstart", this.onTouchStart, { passive: false });
+    this.canvas.addEventListener("touchmove", this.onTouchMove, { passive: false });
+    this.canvas.addEventListener("touchend", this.onTouchEnd, { passive: false });
   }
 
   // --- Resize Handling ---
@@ -1499,7 +1503,7 @@ export class Game {
   private isPointInShape(point: { x: number; y: number }, payload: Payload): boolean {
     if (!payload || !payload.shape) return false;
     const { shape } = payload;
-    const strokeWidth = 5;
+    const strokeWidth = 7; // Adjust as needed for hit detection
     switch (shape.type) {
       case "rect": {
         const nearLeft = Math.abs(point.x - shape.x) <= strokeWidth;
@@ -1587,6 +1591,10 @@ export class Game {
     this.canvas.removeEventListener("mouseup", this.onMouseUp);
     this.canvas.removeEventListener("wheel", this.onWheel);
     document.removeEventListener("keydown", this.onKeyDown);
+    // Remove touch events
+    this.canvas.removeEventListener("touchstart", this.onTouchStart);
+    this.canvas.removeEventListener("touchmove", this.onTouchMove);
+    this.canvas.removeEventListener("touchend", this.onTouchEnd);
     this.removeTextArea();
   }
 
@@ -1596,4 +1604,47 @@ export class Game {
     this.target.scale = 1;
     this.animate();
   }
+
+  private onTouchStart = (e: TouchEvent) => {
+    if (e.touches.length > 1) return; // Only single touch for now
+    e.preventDefault();
+    const touch = e.touches[0];
+    if (!touch) return;
+    const mouseEvent = new MouseEvent("mousedown", {
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      button: 0,
+      bubbles: true,
+      cancelable: true,
+    });
+    this.canvas.dispatchEvent(mouseEvent);
+  };
+
+  private onTouchMove = (e: TouchEvent) => {
+    if (e.touches.length > 1) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    if (!touch) return;
+    const mouseEvent = new MouseEvent("mousemove", {
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+      button: 0,
+      bubbles: true,
+      cancelable: true,
+    });
+    this.canvas.dispatchEvent(mouseEvent);
+  };
+
+  private onTouchEnd = (e: TouchEvent) => {
+    e.preventDefault();
+    const lastTouch = e.changedTouches[0];
+    const mouseEvent = new MouseEvent("mouseup", {
+      clientX: lastTouch?.clientX || 0,
+      clientY: lastTouch?.clientY || 0,
+      button: 0,
+      bubbles: true,
+      cancelable: true,
+    });
+    this.canvas.dispatchEvent(mouseEvent);
+  };
 }

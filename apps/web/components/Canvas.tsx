@@ -79,84 +79,112 @@ export default function Canvas({
         height={window.innerHeight}
         ref={canvasRef}
         width={window.innerWidth}
-        className="backdrop-blur-sm"
+        className="backdrop-blur-sm touch-none w-full h-full"
+        style={{ touchAction: "none" }}
       />
 
-      {/* Tool Selection */}
+      {/* Tool Selection Desktop*/}
       <div
-        className={`fixed top-0 left-0 right-0 flex justify-center items-center mt-6 
+        className={`fixed top-0 left-0 right-0 flex justify-center items-center mt-6 z-20
           ${isInteracting ? "pointer-events-none opacity-50" : "opacity-100"}
           transition-opacity duration-200`}
       >
         <div
           className="flex justify-center items-center gap-2 p-2 bg-gray-800/80 backdrop-blur-sm 
-          shadow-2xl rounded-xl border border-gray-700/50"
+          shadow-2xl rounded-xl border border-gray-700/50 overflow-x-auto max-w-full scrollbar-hide md:gap-2 md:p-2"
+          style={{ WebkitOverflowScrolling: "touch" }}
         >
           <MenuOption
             isActive={selectedTool === Tools.Hand}
             onClick={() => setSelectedTool(Tools.Hand)}
           >
-            ✋ Hand
+            <span className="text-xl md:text-base">✋</span>
+            <span className="hidden md:inline ml-1">Hand</span>
           </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Select}
             onClick={() => setSelectedTool(Tools.Select)}
           >
-            ◻️ Select
+            <span className="text-xl md:text-base">👆🏻</span>
+            <span className="hidden md:inline ml-1">Select</span>
           </MenuOption>
           <Divider />
           <MenuOption
             isActive={selectedTool === Tools.Text}
             onClick={() => setSelectedTool(Tools.Text)}
           >
-            📝 Text
+            <span className="text-xl md:text-base">𝐀</span>
+            <span className="hidden md:inline ml-1">Text</span>
           </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Line}
             onClick={() => setSelectedTool(Tools.Line)}
           >
-            ➖ Line
+            <span className="text-xl md:text-base">➖</span>
+            <span className="hidden md:inline ml-1">Line</span>
           </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Pencil}
             onClick={() => setSelectedTool(Tools.Pencil)}
           >
-            ✏️ Pencil
+            <span className="text-xl md:text-base">✏️</span>
+            <span className="hidden md:inline ml-1">Pencil</span>
           </MenuOption>
           <Divider />
           <MenuOption
             isActive={selectedTool === Tools.Rect}
             onClick={() => setSelectedTool(Tools.Rect)}
           >
-            ⬜ Rectangle
+            <span className="text-xl md:text-base">⬜</span>
+            <span className="hidden md:inline ml-1">Rectangle</span>
           </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Circle}
             onClick={() => setSelectedTool(Tools.Circle)}
           >
-            ⭕ Circle
+            <span className="text-xl md:text-base">⭕</span>
+            <span className="hidden md:inline ml-1">Circle</span>
           </MenuOption>
           <Divider />
           <MenuOption
             isActive={selectedTool === Tools.Eraser}
             onClick={() => setSelectedTool(Tools.Eraser)}
           >
-            🧹 Eraser
+            <span className="text-xl md:text-base">🧹</span>
+            <span className="hidden md:inline ml-1">Eraser</span>
           </MenuOption>
         </div>
       </div>
 
       {/* Quick Actions */}
       <div
-        className={`fixed bottom-0 right-0 flex justify-center items-center gap-2 p-2 m-6 
-          rounded-xl bg-gray-800/80 backdrop-blur-sm shadow-2xl border border-gray-700/50
+        className={`fixed bottom-0 left-0 right-0 flex justify-center items-center gap-4 p-2 pb-4 md:pb-0 z-20
+          rounded-none md:rounded-xl bg-gray-800/80 backdrop-blur-sm shadow-2xl border-t border-gray-700/50 md:border md:bottom-0 md:right-0 md:left-auto md:m-6
           ${isInteracting ? "pointer-events-none opacity-50" : "opacity-100"}
           transition-opacity duration-200`}
       >
-        <MenuOption onClick={() => game?.undo()}>↩️ Undo</MenuOption>
-        <MenuOption onClick={() => game?.recenterCanvas()}>🧭 Re-center</MenuOption>
-        <MenuOption onClick={() => game?.redo()}>↪️ Redo</MenuOption>
+        <MenuOption onClick={() => game?.undo()}>
+          <span className="text-2xl md:text-base">↩️</span>
+          <span className="hidden md:inline ml-1">Undo</span>
+        </MenuOption>
+        <MenuOption onClick={() => game?.recenterCanvas()}>
+          <span className="text-2xl md:text-base">🧭</span>
+          <span className="hidden md:inline ml-1">Re-center</span>
+        </MenuOption>
+        <MenuOption onClick={() => game?.redo()}>
+          <span className="text-2xl md:text-base">↪️</span>
+          <span className="hidden md:inline ml-1">Redo</span>
+        </MenuOption>
       </div>
+      {/* Hide scrollbars for tool bar on mobile */}
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        @media (max-width: 768px) {
+          .rounded-xl { border-radius: 1rem !important; }
+          .rounded-none { border-radius: 0 !important; }
+        }
+      `}</style>
     </main>
   );
 }
