@@ -202,6 +202,7 @@ export class Game {
 
   private moveShape(payload: Payload, x: number, y: number): void {
     this.updateShapePosition(payload, { x, y });
+    this.sendShapeMessage(payload);
     this.animate();
   }
 
@@ -264,6 +265,7 @@ export class Game {
     }
   }
 
+  // broadcast
   private sendShapeMessage(payload: any, id?: string) {
     let message;
     if (typeof payload === "string" && id) {
