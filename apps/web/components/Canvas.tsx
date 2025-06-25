@@ -3,7 +3,7 @@ import { Game } from "../draw/Game";
 
 export enum Tools {
   Rect = "rect",
-  Circle = "circle",
+  Ellipse = "ellipse",
   Pencil = "pencil",
   Line = "line",
   Select = "select",
@@ -139,11 +139,11 @@ export default function Canvas({
             <span className="hidden md:inline ml-1">Rectangle</span>
           </MenuOption>
           <MenuOption
-            isActive={selectedTool === Tools.Circle}
-            onClick={() => setSelectedTool(Tools.Circle)}
+            isActive={selectedTool === Tools.Ellipse}
+            onClick={() => setSelectedTool(Tools.Ellipse)}
           >
             <span className="text-xl md:text-base">⭕</span>
-            <span className="hidden md:inline ml-1">Circle</span>
+            <span className="hidden md:inline ml-1">Ellipse</span>
           </MenuOption>
           <Divider />
           <MenuOption

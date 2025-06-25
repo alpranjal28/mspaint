@@ -180,9 +180,9 @@ export class Game {
         s.x = pos.x;
         s.y = pos.y;
         break;
-      case "circle":
-        s.centerX = pos.x;
-        s.centerY = pos.y;
+      case "ellipse":
+        s.x = pos.x;
+        s.y = pos.y;
         break;
       case "line":
         s.x = pos.x;
@@ -457,9 +457,9 @@ export class Game {
     let offsetY = 0;
 
     switch (shape.type) {
-      case "circle":
-        offsetX = pos.x - shape.centerX;
-        offsetY = pos.y - shape.centerY;
+      case "ellipse":
+        offsetX = pos.x - shape.x;
+        offsetY = pos.y - shape.y;
         break;
       case "rect":
       case "line":
@@ -544,9 +544,9 @@ export class Game {
 
         if (selectedShape && clickedOnSelectedShape) {
           // Calculate drag offsets based on shape type
-          if (selectedShape.shape.type === "circle") {
-            dragOffsetX = pos.x - selectedShape.shape.centerX;
-            dragOffsetY = pos.y - selectedShape.shape.centerY;
+          if (selectedShape.shape.type === "ellipse") {
+            dragOffsetX = pos.x - selectedShape.shape.x;
+            dragOffsetY = pos.y - selectedShape.shape.y;
           } else if (
             selectedShape.shape.type === "rect" ||
             selectedShape.shape.type === "line" ||
@@ -594,9 +594,9 @@ export class Game {
 
           if (selectedShape) {
             // Single shape selection
-            if (selectedShape.shape.type === "circle") {
-              dragOffsetX = pos.x - selectedShape.shape.centerX;
-              dragOffsetY = pos.y - selectedShape.shape.centerY;
+            if (selectedShape.shape.type === "ellipse") {
+              dragOffsetX = pos.x - selectedShape.shape.x;
+              dragOffsetY = pos.y - selectedShape.shape.y;
             } else if (
               selectedShape.shape.type === "rect" ||
               selectedShape.shape.type === "line" ||
@@ -946,12 +946,12 @@ export class Game {
           shape.y >= startY &&
           shape.y + shape.height <= endY
         );
-      case "circle":
+      case "ellipse":
         return (
-          shape.centerX - shape.radius >= startX &&
-          shape.centerX + shape.radius <= endX &&
-          shape.centerY - shape.radius >= startY &&
-          shape.centerY + shape.radius <= endY
+          shape.x - shape.rx >= startX &&
+          shape.x + shape.rx <= endX &&
+          shape.y - shape.ry >= startY &&
+          shape.y + shape.ry <= endY
         );
       case "line":
         return (
@@ -1010,13 +1010,13 @@ export class Game {
           width: lastX - startX,
           height: lastY - startY,
         };
-      case Tools.Circle:
-        const radius = Math.hypot(lastX - startX, lastY - startY) / 2;
+      case Tools.Ellipse:
         return {
-          type: "circle",
-          centerX: (lastX + startX) / 2,
-          centerY: (lastY + startY) / 2,
-          radius,
+          type: "ellipse",
+          x: (startX + lastX) / 2,
+          y: (startY + lastY) / 2,
+          rx: Math.abs(lastX - startX) / 2,
+          ry: Math.abs(lastY - startY) / 2,
         };
       case Tools.Line:
         return {
@@ -1051,12 +1051,14 @@ export class Game {
         case "rect":
           this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
           break;
-        case "circle":
+        case "ellipse":
           this.ctx.beginPath();
-          this.ctx.arc(
-            shape.centerX,
-            shape.centerY,
-            shape.radius,
+          this.ctx.ellipse(
+            shape.x,
+            shape.y,
+            shape.rx,
+            shape.ry,
+            0,
             0,
             Math.PI * 2
           );
@@ -1185,12 +1187,14 @@ export class Game {
           case "rect":
             this.ctx.strokeRect(shape.x, shape.y, shape.width, shape.height);
             break;
-          case "circle":
+          case "ellipse":
             this.ctx.beginPath();
-            this.ctx.arc(
-              shape.centerX,
-              shape.centerY,
-              shape.radius,
+            this.ctx.ellipse(
+              shape.x,
+              shape.y,
+              shape.rx,
+              shape.ry,
+              0,
               0,
               Math.PI * 2
             );
@@ -1457,11 +1461,10 @@ export class Game {
   private getShapePosition(payload: Payload): { x: number; y: number } {
     const { shape } = payload;
     switch (shape.type) {
-      case "circle":
-        return { x: shape.centerX, y: shape.centerY };
       case "rect":
       case "line":
       case "text":
+      case "ellipse":
         return { x: shape.x, y: shape.y };
       case "pencil":
         return shape.points?.[0] ? { x: shape.points[0].x, y: shape.points[0].y } : { x: 0, y: 0 };
@@ -1519,11 +1522,13 @@ export class Game {
           ((nearTop || nearBottom) && withinX)
         );
       }
-      case "circle": {
-        const dx = point.x - shape.centerX;
-        const dy = point.y - shape.centerY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        return Math.abs(distance - shape.radius) <= strokeWidth;
+      case "ellipse": {
+        // Hit test for ellipse border (approximate)
+        const dx = (point.x - shape.x) / (shape.rx || 1);
+        const dy = (point.y - shape.y) / (shape.ry || 1);
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        // Consider a hit if close to the border (within strokeWidth in normalized space)
+        return Math.abs(dist - 1) * Math.max(shape.rx, shape.ry) <= strokeWidth;
       }
       case "line": {
         const dx = shape.x2 - shape.x;

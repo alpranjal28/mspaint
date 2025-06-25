@@ -9,11 +9,12 @@ interface RectProps {
   width: number;
   height: number;
 }
-interface CircleProps {
-  type: "circle";
-  centerX: number;
-  centerY: number;
-  radius: number;
+interface EllipseProps {
+  type: "ellipse";
+  x: number;
+  y: number;
+  rx: number;
+  ry: number;
 }
 interface LineProps {
   type: "line";
@@ -34,7 +35,7 @@ interface TextProps {
 }
 export type Shapes =
   | RectProps
-  | CircleProps
+  | EllipseProps
   | LineProps
   | PencilProps
   | TextProps;
