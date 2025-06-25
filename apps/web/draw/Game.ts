@@ -89,11 +89,14 @@ export class Game {
 
   private processShapes(shapes: Payload[] = []): Payload[] {
     if (!shapes.length) return [];
-    const sorted = shapes.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    const sorted = shapes.sort(
+      (a, b) => (a.timestamp || 0) - (b.timestamp || 0)
+    );
     const active = new Map<string, Payload>();
     sorted.forEach((shape) => {
       if (shape.function === "erase") active.delete(shape.id);
-      else if (shape.function === "draw" || shape.function === "move") active.set(shape.id, shape);
+      else if (shape.function === "draw" || shape.function === "move")
+        active.set(shape.id, shape);
     });
     return Array.from(active.values());
   }
@@ -115,7 +118,9 @@ export class Game {
   private handleSocketMessage(message: any) {
     switch (message.function) {
       case "erase":
-        this.tempShapes = this.tempShapes.filter((shape) => shape.id !== message.id);
+        this.tempShapes = this.tempShapes.filter(
+          (shape) => shape.id !== message.id
+        );
         break;
       case "draw":
         if (!this.tempShapes.some((shape) => shape.id === message.id)) {
@@ -128,6 +133,17 @@ export class Game {
           this.tempShapes[idx]!.shape = message.shape;
         }
         break;
+      case "un-erase":
+        // Fetch the shape from the backend and add it to tempShapes if not present
+        // (since the shape data is not in the un-erase message)
+        getExistingShapes(this.roomId).then((shapes) => {
+          const found = shapes.find((s) => s.id === message.id);
+          if (found && !this.tempShapes.some((s) => s.id === found.id)) {
+            this.tempShapes.push(found);
+            this.render();
+          }
+        });
+        break;
     }
     this.render();
   }
@@ -139,9 +155,15 @@ export class Game {
     this.canvas.addEventListener("wheel", this.onWheel);
     document.addEventListener("keydown", this.onKeyDown);
     // Touch support
-    this.canvas.addEventListener("touchstart", this.onTouchStart, { passive: false });
-    this.canvas.addEventListener("touchmove", this.onTouchMove, { passive: false });
-    this.canvas.addEventListener("touchend", this.onTouchEnd, { passive: false });
+    this.canvas.addEventListener("touchstart", this.onTouchStart, {
+      passive: false,
+    });
+    this.canvas.addEventListener("touchmove", this.onTouchMove, {
+      passive: false,
+    });
+    this.canvas.addEventListener("touchend", this.onTouchEnd, {
+      passive: false,
+    });
   }
 
   // --- Resize Handling ---
@@ -235,7 +257,9 @@ export class Game {
     switch (action.type) {
       case "draw":
         if (isUndo) {
-          this.tempShapes = this.tempShapes.filter((shape) => shape.id !== action.payload.id);
+          this.tempShapes = this.tempShapes.filter(
+            (shape) => shape.id !== action.payload.id
+          );
           this.sendShapeMessage("erase", action.payload.id);
         } else {
           const drawPayload = { ...action.payload, timestamp: Date.now() };
@@ -247,9 +271,15 @@ export class Game {
         if (isUndo) {
           this.tempShapes.push({ ...action.payload, timestamp: Date.now() });
           // Send un-erase message to backend for soft delete undo
-          this.sendShapeMessage({ function: "un-erase", id: action.payload.id, timestamp: Date.now() });
+          this.sendShapeMessage({
+            function: "un-erase",
+            id: action.payload.id,
+            timestamp: Date.now(),
+          });
         } else {
-          this.tempShapes = this.tempShapes.filter((shape) => shape.id !== action.payload.id);
+          this.tempShapes = this.tempShapes.filter(
+            (shape) => shape.id !== action.payload.id
+          );
           this.sendShapeMessage("erase", action.payload.id);
         }
         break;
@@ -515,7 +545,7 @@ export class Game {
         // Check if shift key is pressed for multi-select
         const isShiftPressed = e.shiftKey;
         const selectedShape = this.findShapeAtPosition(pos);
-
+        this.startInteracting();
         // Check if clicking on a resize handle of the currently selected shape
         if (this.selection.selectedShape) {
           const handle = this.getResizeHandle(
@@ -632,7 +662,10 @@ export class Game {
             // Store original positions before dragging
             this.originalPositions.clear();
             this.selection.selectedShapes.forEach((shape) => {
-              this.originalPositions.set(shape.id, this.getShapePosition(shape));
+              this.originalPositions.set(
+                shape.id,
+                this.getShapePosition(shape)
+              );
             });
 
             this.selection.selectedShape = selectedShape;
@@ -799,8 +832,11 @@ export class Game {
             this.selection.selectedShape = selectedShapes[0];
           }
 
+          this.onStopInteracting();
           this.selection.isMultiSelect = false;
         } else if (this.selection.isResizing && this.selection.selectedShape) {
+          this.onStopInteracting();
+          // Handle history for resizing
           this.addToHistory({
             type: "move",
             payload: this.selection.selectedShape,
@@ -808,9 +844,13 @@ export class Game {
             newPosition: { x: 0, y: 0 },
           });
         } else if (this.selection.isDragging) {
+          this.onStopInteracting();
           // Handle history for all selected shapes
           this.selection.selectedShapes.forEach((shape) => {
-            const oldPos = this.originalPositions.get(shape.id) || { x: 0, y: 0 };
+            const oldPos = this.originalPositions.get(shape.id) || {
+              x: 0,
+              y: 0,
+            };
             const newPos = this.getShapePosition(shape);
             this.addToHistory({
               type: "move",
@@ -1468,13 +1508,18 @@ export class Game {
       case "ellipse":
         return { x: shape.x, y: shape.y };
       case "pencil":
-        return shape.points?.[0] ? { x: shape.points[0].x, y: shape.points[0].y } : { x: 0, y: 0 };
+        return shape.points?.[0]
+          ? { x: shape.points[0].x, y: shape.points[0].y }
+          : { x: 0, y: 0 };
       default:
         return { x: 0, y: 0 };
     }
   }
 
-  private findShapeAtPosition(pos: { x: number; y: number }): Payload | undefined {
+  private findShapeAtPosition(pos: {
+    x: number;
+    y: number;
+  }): Payload | undefined {
     // First check if any currently selected shape is at this position
     for (const selectedShape of this.selection.selectedShapes) {
       if (this.isPointInShape(pos, selectedShape)) {
@@ -1506,16 +1551,21 @@ export class Game {
     return shapesAtPosition[this.lastSelectedShapeIndex];
   }
 
-  private isPointInShape(point: { x: number; y: number }, payload: Payload): boolean {
+  private isPointInShape(
+    point: { x: number; y: number },
+    payload: Payload
+  ): boolean {
     if (!payload || !payload.shape) return false;
     const { shape } = payload;
     const strokeWidth = 7; // Adjust as needed for hit detection
     switch (shape.type) {
       case "rect": {
         const nearLeft = Math.abs(point.x - shape.x) <= strokeWidth;
-        const nearRight = Math.abs(point.x - (shape.x + shape.width)) <= strokeWidth;
+        const nearRight =
+          Math.abs(point.x - (shape.x + shape.width)) <= strokeWidth;
         const nearTop = Math.abs(point.y - shape.y) <= strokeWidth;
-        const nearBottom = Math.abs(point.y - (shape.y + shape.height)) <= strokeWidth;
+        const nearBottom =
+          Math.abs(point.y - (shape.y + shape.height)) <= strokeWidth;
         const withinX = point.x >= shape.x && point.x <= shape.x + shape.width;
         const withinY = point.y >= shape.y && point.y <= shape.y + shape.height;
         return (
@@ -1540,7 +1590,8 @@ export class Game {
           0,
           Math.min(
             1,
-            ((point.x - shape.x) * dx + (point.y - shape.y) * dy) / (length * length)
+            ((point.x - shape.x) * dx + (point.y - shape.y) * dy) /
+              (length * length)
           )
         );
         const projX = shape.x + t * dx;
@@ -1560,7 +1611,8 @@ export class Game {
             0,
             Math.min(
               1,
-              ((point.x - p1.x) * dx + (point.y - p1.y) * dy) / (length * length)
+              ((point.x - p1.x) * dx + (point.y - p1.y) * dy) /
+                (length * length)
             )
           );
           const projX = p1.x + t * dx;
