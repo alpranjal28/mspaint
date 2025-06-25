@@ -246,7 +246,8 @@ export class Game {
       case "erase":
         if (isUndo) {
           this.tempShapes.push({ ...action.payload, timestamp: Date.now() });
-          this.sendShapeMessage(action.payload);
+          // Send un-erase message to backend for soft delete undo
+          this.sendShapeMessage({ function: "un-erase", id: action.payload.id, timestamp: Date.now() });
         } else {
           this.tempShapes = this.tempShapes.filter((shape) => shape.id !== action.payload.id);
           this.sendShapeMessage("erase", action.payload.id);

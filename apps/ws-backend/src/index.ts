@@ -67,14 +67,74 @@ wss.on("connection", (ws, request) => {
     if (parsedData.type === "chat") {
       const roomId = Number(parsedData.roomId);
       const message = parsedData.message;
+      let shapeId, action;
+      try {
+        // Try to parse message as JSON to extract shapeId and action
+        const msgObj =
+          typeof message === "string" ? JSON.parse(message) : message;
+        shapeId = msgObj.id || parsedData.shapeId;
+        action = msgObj.function || parsedData.action;
+      } catch {
+        shapeId = parsedData.shapeId;
+        action = parsedData.action;
+      }
 
-      await prismaClient.chat.create({
-        data: {
-          roomId: roomId,
-          userId: userId, // takes user id from token
-          message: message,
-        },
-      });
+      if (action === "move" && shapeId) {
+        // Update the existing shape entry using shapeId
+        await prismaClient.chat.updateMany({
+          where: { shapeId: shapeId, roomId: roomId },
+          data: {
+            message: message,
+            updatedAt: new Date(),
+            erased: false, // ensure shape is visible after move
+          },
+        });
+      } else if (action === "draw" && shapeId) {
+        // Create a new entry for a new shape
+        await prismaClient.chat.create({
+          data: {
+            roomId: roomId,
+            userId: userId,
+            message: message,
+            shapeId: shapeId,
+            erased: false,
+          },
+        });
+      } else if (action === "erase" && shapeId) {
+        // Soft delete: mark all entries for this shape as erased
+        await prismaClient.chat.updateMany({
+          where: { shapeId: shapeId, roomId: roomId },
+          data: { erased: true },
+        });
+      } else if (action === "un-erase" && shapeId) {
+        // Undo erase: mark all entries for this shape as not erased
+        await prismaClient.chat.updateMany({
+          where: { shapeId: shapeId, roomId: roomId },
+          data: { erased: false },
+        });
+        // Broadcast un-erase to all participants in the room
+        roomUsers.forEach((u) => {
+          if (u.room.includes(roomId)) {
+            u.ws.send(
+              JSON.stringify({
+                type: "broadcasted",
+                message: JSON.stringify({ function: "un-erase", id: shapeId, timestamp: Date.now() }),
+                roomId,
+                userId,
+              })
+            );
+          }
+        });
+      } else {
+        // Regular chat message (no shapeId/action)
+        await prismaClient.chat.create({
+          data: {
+            roomId: roomId,
+            userId: userId, // takes user id from token
+            message: message,
+          },
+        });
+      }
 
       // console.log("room users", roomUsers);
 

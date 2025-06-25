@@ -56,6 +56,8 @@ model Chat {
   roomId    Int
   userId    String
   message   String
+  shapeId   String? // Unique identifier for a shape, used for efficient updates
+  erased    Boolean   @default(false) // Soft delete for undo/redo
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   room      Room     @relation(fields: [roomId], references: [id])
