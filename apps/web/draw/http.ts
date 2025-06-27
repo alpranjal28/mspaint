@@ -86,12 +86,18 @@ export default async function getExistingShapes(
       },
     });
 
-    const data = res.data.messages.map((message: any) =>
+    const erasedDataFilter = res.data.messages.filter(
+      (message: any) => message.erased !== true
+    );
+    console.log("not erased data from server/db", erasedDataFilter);
+    const newdata = erasedDataFilter.map((message: any) =>
       JSON.parse(message.message)
     );
-    console.log("raw data from server/db", data);
 
-    const validPayloads = data.filter((item: any) => {
+    // const data = res.data.messages.map((message: any) => JSON.parse(message.message));
+    // console.log("raw data from server/db", data);
+
+    const validPayloads = newdata.filter((item: any) => {
       return (
         // validation
         item &&
