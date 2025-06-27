@@ -16,17 +16,15 @@ export function refreshToken(userId: string, name: string) {
 }
 
 export function verifyToken(token: string) {
-  console.log("verifing token", token);
+  console.log("verifing token");
   return jwt.verify(token, JWT_SECRET);
 }
 
 export function verifiedUser(token: string): string | null {
-  console.log("verifing user token", token);
   try {
     const decoded = verifyToken(token);
     if (typeof decoded === "string") return null;
     if (!decoded) return null;
-    console.log("decoded user token", decoded);
     return decoded.userId;
   } catch (e) {
     console.log("error verifing user token", e);
