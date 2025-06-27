@@ -83,11 +83,81 @@ export default function Canvas({
         style={{ touchAction: "none" }}
       />
 
+      {/* tool selection mobile */}
+      <div
+        className={`flex-shrink sm:hidden md:hidden fixed top-0 left-0 right-0 justify-center items-center mt-6 z-20
+          ${isInteracting ? "pointer-events-none opacity-50" : "opacity-100"}
+          transition-opacity duration-200 select-none`}
+      >
+        <div
+          className="flex sm:hidden md:hidden justify-center items-center gap-2 p-2 bg-gray-800/80 backdrop-blur-sm 
+          shadow-2xl rounded-xl border border-gray-700/50 overflow-x-auto max-w-full scrollbar-hide md:gap-2 md:p-2"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          <MenuOption
+            isActive={selectedTool === Tools.Text}
+            onClick={() => setSelectedTool(Tools.Text)}
+          >
+            <span className="text-xl md:text-base">𝐀</span>
+          </MenuOption>
+          <MenuOption
+            isActive={selectedTool === Tools.Line}
+            onClick={() => setSelectedTool(Tools.Line)}
+          >
+            <span className="text-xl md:text-base">➖</span>
+          </MenuOption>
+          <MenuOption
+            isActive={selectedTool === Tools.Pencil}
+            onClick={() => setSelectedTool(Tools.Pencil)}
+          >
+            <span className="text-xl md:text-base">✏️</span>
+          </MenuOption>
+          <Divider />
+          <MenuOption
+            isActive={selectedTool === Tools.Rect}
+            onClick={() => setSelectedTool(Tools.Rect)}
+          >
+            <span className="text-xl md:text-base">⬜</span>
+          </MenuOption>
+          <MenuOption
+            isActive={selectedTool === Tools.Ellipse}
+            onClick={() => setSelectedTool(Tools.Ellipse)}
+          >
+            <span className="text-xl md:text-base">⭕</span>
+          </MenuOption>
+        </div>
+      </div>
+
+      <div
+        className={`flex sm:hidden fixed top-0 bottom-0 right-0 justify-center items-center mr-3 z-20
+          ${isInteracting ? "pointer-events-none opacity-50" : "opacity-100"}
+          transition-opacity duration-200 select-none`}
+      >
+        <div
+          className="sm:hidden flex-col justify-center items-center gap-2 p-2 bg-gray-800/80 backdrop-blur-sm 
+          shadow-2xl rounded-xl border border-gray-700/50 overflow-x-auto max-w-full scrollbar-hide md:gap-2 md:p-2"
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          <MenuOption
+            isActive={selectedTool === Tools.Hand}
+            onClick={() => setSelectedTool(Tools.Hand)}
+          >
+            <span className="text-xl md:text-base">✋</span>
+          </MenuOption>
+          <MenuOption
+            isActive={selectedTool === Tools.Interact}
+            onClick={() => setSelectedTool(Tools.Interact)}
+          >
+            <span className="text-xl md:text-base">👆🏻</span>
+          </MenuOption>
+        </div>
+      </div>
+
       {/* Tool Selection Desktop*/}
       <div
-        className={`fixed top-0 left-0 right-0 flex justify-center items-center mt-6 z-20
+        className={`hidden fixed sm:flex justify-center items-center top-0 left-0 right-0 mt-6 z-20
           ${isInteracting ? "pointer-events-none opacity-50" : "opacity-100"}
-          transition-opacity duration-200`}
+          transition-opacity duration-200 select-none`}
       >
         <div
           className="flex justify-center items-center gap-2 p-2 bg-gray-800/80 backdrop-blur-sm 
@@ -99,14 +169,14 @@ export default function Canvas({
             onClick={() => setSelectedTool(Tools.Hand)}
           >
             <span className="text-xl md:text-base">✋</span>
-            <span className="hidden md:inline ml-1">Hand</span>
+            <span className="hidden lg:inline ml-1">Hand</span>
           </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Interact}
             onClick={() => setSelectedTool(Tools.Interact)}
           >
             <span className="text-xl md:text-base">👆🏻</span>
-            <span className="hidden md:inline ml-1">Select</span>
+            <span className="hidden lg:inline ml-1">Select</span>
           </MenuOption>
           <Divider />
           <MenuOption
@@ -114,21 +184,21 @@ export default function Canvas({
             onClick={() => setSelectedTool(Tools.Text)}
           >
             <span className="text-xl md:text-base">𝐀</span>
-            <span className="hidden md:inline ml-1">Text</span>
+            <span className="hidden lg:inline ml-1">Text</span>
           </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Line}
             onClick={() => setSelectedTool(Tools.Line)}
           >
             <span className="text-xl md:text-base">➖</span>
-            <span className="hidden md:inline ml-1">Line</span>
+            <span className="hidden lg:inline ml-1">Line</span>
           </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Pencil}
             onClick={() => setSelectedTool(Tools.Pencil)}
           >
             <span className="text-xl md:text-base">✏️</span>
-            <span className="hidden md:inline ml-1">Pencil</span>
+            <span className="hidden lg:inline ml-1">Pencil</span>
           </MenuOption>
           <Divider />
           <MenuOption
@@ -136,14 +206,14 @@ export default function Canvas({
             onClick={() => setSelectedTool(Tools.Rect)}
           >
             <span className="text-xl md:text-base">⬜</span>
-            <span className="hidden md:inline ml-1">Rectangle</span>
+            <span className="hidden lg:inline ml-1">Rectangle</span>
           </MenuOption>
           <MenuOption
             isActive={selectedTool === Tools.Ellipse}
             onClick={() => setSelectedTool(Tools.Ellipse)}
           >
             <span className="text-xl md:text-base">⭕</span>
-            <span className="hidden md:inline ml-1">Ellipse</span>
+            <span className="hidden lg:inline ml-1">Ellipse</span>
           </MenuOption>
           <Divider />
           <MenuOption
@@ -151,17 +221,17 @@ export default function Canvas({
             onClick={() => setSelectedTool(Tools.Eraser)}
           >
             <span className="text-xl md:text-base">🧹</span>
-            <span className="hidden md:inline ml-1">Eraser</span>
+            <span className="hidden lg:inline ml-1">Eraser</span>
           </MenuOption>
         </div>
       </div>
 
       {/* Quick Actions */}
       <div
-        className={`fixed bottom-0 left-0 right-0 flex justify-center items-center gap-4 p-2 pb-4 md:pb-0 z-20
+        className={`fixed bottom-0 left-0 right-0 flex justify-center items-center gap-4 p-2 pb-4 md:pb-2 z-20
           rounded-none md:rounded-xl bg-gray-800/80 backdrop-blur-sm shadow-2xl border-t border-gray-700/50 md:border md:bottom-0 md:right-0 md:left-auto md:m-6
           ${isInteracting ? "pointer-events-none opacity-50" : "opacity-100"}
-          transition-opacity duration-200`}
+          transition-opacity duration-200 select-none`}
       >
         <MenuOption onClick={() => game?.undo()}>
           <span className="text-2xl md:text-base">↩️</span>
