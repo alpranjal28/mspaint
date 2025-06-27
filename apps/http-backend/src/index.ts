@@ -82,40 +82,45 @@ app.post("/signup", async (req, res) => {
 });
 
 app.post("/signin", async (req, res) => {
-  const data = SignInSchema.safeParse(req.body);
-  if (!data.success) {
-    res.status(400).json(data.error);
-    return;
+  try {
+    const data = SignInSchema.safeParse(req.body);
+    if (!data.success) {
+      res.status(400).json(data.error);
+      return;
+    }
+
+    // check if user exists
+    const user = await prismaClient.user.findUnique({
+      where: {
+        email: data.data.email,
+      },
+    });
+    if (!user) {
+      res.status(400).json({ message: "User not found" });
+      return;
+    }
+
+    // check if password is correct
+    if (!checkPassword(data.data.password, user.password)) {
+      res.status(400).json({ message: "Invalid password" });
+      return;
+    }
+
+    const token = accessToken(user.id, user.email);
+    const refToken = refreshToken(user.id, user.username);
+    const username = user.username;
+
+    res.cookie("refreshToken", refToken, {
+      httpOnly: true,
+      secure: true,
+      maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
+    });
+
+    res.json({ username, token });
+  } catch (error) {
+    console.error("Sign in error:", error);
+    res.status(500).json({ message: "Failed to sign in" });
   }
-
-  // check if user exists
-  const user = await prismaClient.user.findUnique({
-    where: {
-      email: data.data.email,
-    },
-  });
-  if (!user) {
-    res.status(400).json({ message: "User not found" });
-    return;
-  }
-
-  // check if password is correct
-  if (!checkPassword(data.data.password, user.password)) {
-    res.status(400).json({ message: "Invalid password" });
-    return;
-  }
-
-  const token = accessToken(user.id, user.email);
-  const refToken = refreshToken(user.id, user.username);
-  const username = user.username;
-
-  res.cookie("refreshToken", refToken, {
-    httpOnly: true,
-    secure: true,
-    maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
-  });
-
-  res.json({ username, token });
 });
 
 app.post("/refresh-token", async (req, res) => {
@@ -157,8 +162,13 @@ app.post("/refresh-token", async (req, res) => {
 });
 
 app.post("/logout", (req, res) => {
-  res.clearCookie("refreshToken");
-  res.json({ message: "Logged out" });
+  try {
+    res.clearCookie("refreshToken");
+    res.json({ message: "Logged out" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    res.status(500).json({ message: "Failed to log out" });
+  }
 });
 
 // room routes
@@ -328,25 +338,30 @@ app.get("/rooms", middleware, async (req, res) => {
 });
 
 app.get("/room/:roomId", middleware, async (req, res) => {
-  const roomId = Number(req.params.roomId);
-  if (isNaN(Number(roomId))) {
-    res.status(400).json({ message: "Invalid room ID" });
-    return;
+  try {
+    const roomId = Number(req.params.roomId);
+    if (isNaN(Number(roomId))) {
+      res.status(400).json({ message: "Invalid room ID" });
+      return;
+    }
+
+    console.log("get messages from roomId -> ", roomId);
+
+    // get messages from room
+    const messages = await prismaClient.chat.findMany({
+      where: {
+        roomId: roomId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+
+    res.json({ messages });
+  } catch (error) {
+    console.error("Get room messages error:", error);
+    res.status(500).json({ message: "Failed to fetch room messages" });
   }
-
-  console.log("get messages from roomId -> ", roomId);
-
-  // get messages from room
-  const messages = await prismaClient.chat.findMany({
-    where: {
-      roomId: roomId,
-    },
-    orderBy: {
-      createdAt: "desc",
-    },
-  });
-
-  res.json({ messages });
 });
 
 app.delete(
@@ -452,16 +467,21 @@ app.post("/room/:roomId/leave", middleware, async (req, res) => {
 });
 
 app.get("/chats/:slug", middleware, async (req, res) => {
-  const slug = req.params.slug;
+  try {
+    const slug = req.params.slug;
 
-  // get roomId by slug
-  const roomId = await prismaClient.room.findFirst({
-    where: {
-      slug: slug,
-    },
-  });
+    // get roomId by slug
+    const roomId = await prismaClient.room.findFirst({
+      where: {
+        slug: slug,
+      },
+    });
 
-  res.json({ roomId });
+    res.json({ roomId });
+  } catch (error) {
+    console.error("Get room by slug error:", error);
+    res.status(500).json({ message: "Failed to fetch room by slug" });
+  }
 });
 
 app.listen(port, () => {
