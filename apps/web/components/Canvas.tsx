@@ -6,7 +6,7 @@ export enum Tools {
   Ellipse = "ellipse",
   Pencil = "pencil",
   Line = "line",
-  Select = "select",
+  Interact = "interact",
   Eraser = "eraser",
   Hand = "hand",
   Text = "text",
@@ -102,8 +102,8 @@ export default function Canvas({
             <span className="hidden md:inline ml-1">Hand</span>
           </MenuOption>
           <MenuOption
-            isActive={selectedTool === Tools.Select}
-            onClick={() => setSelectedTool(Tools.Select)}
+            isActive={selectedTool === Tools.Interact}
+            onClick={() => setSelectedTool(Tools.Interact)}
           >
             <span className="text-xl md:text-base">👆🏻</span>
             <span className="hidden md:inline ml-1">Select</span>

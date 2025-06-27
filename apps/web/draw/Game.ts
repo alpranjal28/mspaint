@@ -190,7 +190,7 @@ export class Game {
     }
     this.selectedTool = tool;
     this.canvas.style.cursor = tool === Tools.Hand ? "grab" : "crosshair";
-    if (tool !== Tools.Select) {
+    if (tool !== Tools.Interact) {
       this.selection.selectedShape = undefined;
       this.selection.selectedShapes = [];
       this.selection.isMultiSelect = false;
@@ -552,7 +552,7 @@ export class Game {
         this.startInteracting();
         break;
 
-      case Tools.Select:
+      case Tools.Interact:
         // Check if shift key is pressed for multi-select
         const isShiftPressed = e.shiftKey;
         const selectedShape = this.findShapeAtPosition(pos);
@@ -748,7 +748,7 @@ export class Game {
       this.canvasDrag.startY = e.clientY;
 
       this.animate();
-    } else if (this.selectedTool === Tools.Select && this.selection.active) {
+    } else if (this.selectedTool === Tools.Interact && this.selection.active) {
       if (this.selection.isMultiSelect) {
         // We're doing a box selection, just need to update the render
         this.render();
@@ -823,8 +823,8 @@ export class Game {
       case Tools.Eraser:
         if (this.eraserState.active) {
           // Erase all shapes that were marked for deletion
-          this.eraserState.shapesToErase.forEach(shapeId => {
-            const shape = this.tempShapes.find(s => s.id === shapeId);
+          this.eraserState.shapesToErase.forEach((shapeId) => {
+            const shape = this.tempShapes.find((s) => s.id === shapeId);
             if (shape) {
               this.eraseShape(shape);
             }
@@ -841,7 +841,7 @@ export class Game {
         // text finalization in onMouseDown at next click
         break;
 
-      case Tools.Select:
+      case Tools.Interact:
         if (this.selection.isMultiSelect) {
           // Finalize box selection
           const startX = Math.min(this.selection.startX, pos.x);
@@ -1198,7 +1198,7 @@ export class Game {
 
     // If in multi-select mode, identify shapes in the selection box
     if (
-      this.selectedTool === Tools.Select &&
+      this.selectedTool === Tools.Interact &&
       this.selection.active &&
       this.selection.isMultiSelect
     ) {
@@ -1238,8 +1238,10 @@ export class Game {
       const isSelected =
         tempShape.shape === this.selection.selectedShape?.shape ||
         this.selection.selectedShapes.some((s) => s.id === tempShape.id);
-      const isMarkedForErasure = this.eraserState.shapesToErase.has(tempShape.id);
-      
+      const isMarkedForErasure = this.eraserState.shapesToErase.has(
+        tempShape.id
+      );
+
       // Set color based on state: gray for marked for erasure, blue for selected, white for normal
       if (isMarkedForErasure) {
         this.ctx.strokeStyle = "gray";
@@ -1353,7 +1355,7 @@ export class Game {
 
     // Draw selection box if in multi-select mode
     if (
-      this.selectedTool === Tools.Select &&
+      this.selectedTool === Tools.Interact &&
       this.selection.active &&
       this.selection.isMultiSelect
     ) {
