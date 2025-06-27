@@ -40,6 +40,7 @@ export class Game {
   private target = { scale: 1, x: 0, y: 0 };
   private drawing = { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 };
   private pencilPoints: { x: number; y: number }[] = [];
+  private eraserState = { active: false, shapesToErase: new Set<string>() };
   private selection: SelectionState = {
     active: false,
     startX: 0,
@@ -180,6 +181,12 @@ export class Game {
   public setTool(tool: Tools): void {
     if (this.selectedTool === Tools.Text && this.textArea) {
       this.finalizeTextInput();
+    }
+    // Clear eraser state when switching tools
+    if (this.selectedTool === Tools.Eraser && tool !== Tools.Eraser) {
+      this.eraserState.active = false;
+      this.eraserState.shapesToErase.clear();
+      this.render();
     }
     this.selectedTool = tool;
     this.canvas.style.cursor = tool === Tools.Hand ? "grab" : "crosshair";
@@ -530,10 +537,14 @@ export class Game {
         break;
 
       case Tools.Eraser:
+        this.eraserState.active = true;
+        this.eraserState.shapesToErase.clear();
         const shapeToErase = this.findShapeAtPosition(pos);
         if (shapeToErase) {
-          this.eraseShape(shapeToErase);
+          this.eraserState.shapesToErase.add(shapeToErase.id);
         }
+        this.startInteracting();
+        this.render();
         break;
 
       case Tools.Text:
@@ -783,6 +794,12 @@ export class Game {
           this.canvas.style.cursor = "move";
         }
       }
+    } else if (this.eraserState.active) {
+      const shapeAtPos = this.findShapeAtPosition(pos);
+      if (shapeAtPos) {
+        this.eraserState.shapesToErase.add(shapeAtPos.id);
+        this.render();
+      }
     } else if (this.drawing.active) {
       this.drawing.lastX = pos.x;
       this.drawing.lastY = pos.y;
@@ -801,6 +818,22 @@ export class Game {
         this.canvasDrag.active = false;
         this.canvas.style.cursor = "grab";
         this.onStopInteracting();
+        break;
+
+      case Tools.Eraser:
+        if (this.eraserState.active) {
+          // Erase all shapes that were marked for deletion
+          this.eraserState.shapesToErase.forEach(shapeId => {
+            const shape = this.tempShapes.find(s => s.id === shapeId);
+            if (shape) {
+              this.eraseShape(shape);
+            }
+          });
+          this.eraserState.active = false;
+          this.eraserState.shapesToErase.clear();
+          this.onStopInteracting();
+          this.render();
+        }
         break;
 
       case Tools.Text:
@@ -1205,17 +1238,31 @@ export class Game {
       const isSelected =
         tempShape.shape === this.selection.selectedShape?.shape ||
         this.selection.selectedShapes.some((s) => s.id === tempShape.id);
-      this.ctx.strokeStyle = isSelected ? "blue" : "white";
+      const isMarkedForErasure = this.eraserState.shapesToErase.has(tempShape.id);
+      
+      // Set color based on state: gray for marked for erasure, blue for selected, white for normal
+      if (isMarkedForErasure) {
+        this.ctx.strokeStyle = "gray";
+        this.ctx.globalAlpha = 0.5;
+      } else {
+        this.ctx.strokeStyle = isSelected ? "blue" : "white";
+        this.ctx.globalAlpha = 1;
+      }
 
-      // For text, set the fill style based on selection
+      // For text, set the fill style based on selection and erasure state
       if (tempShape.shape?.type === "text") {
-        const isTextSelected =
-          tempShape.shape === this.selection.selectedShape?.shape ||
-          this.selection.selectedShapes.some((s) => s.id === tempShape.id);
-        this.ctx.fillStyle = isTextSelected ? "blue" : "white";
+        if (isMarkedForErasure) {
+          this.ctx.fillStyle = "gray";
+        } else {
+          const isTextSelected =
+            tempShape.shape === this.selection.selectedShape?.shape ||
+            this.selection.selectedShapes.some((s) => s.id === tempShape.id);
+          this.ctx.fillStyle = isTextSelected ? "blue" : "white";
+        }
       }
 
       this.drawShape(tempShape);
+      this.ctx.globalAlpha = 1; // Reset alpha
     });
 
     // Draw current shape
