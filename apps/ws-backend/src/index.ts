@@ -28,6 +28,12 @@ const checkUser = (token: string): string | null => {
   return decoded.userId;
 };
 
+// Debounce timers and latest move messages per shape id
+// moveDebounceTimers: stores a timer for each shape's move action
+// latestMoveMessages: stores the latest move message for each shape
+const moveDebounceTimers: Record<string, NodeJS.Timeout> = {};
+const latestMoveMessages: Record<string, any> = {};
+
 wss.on("connection", (ws, request) => {
   const url = request.url;
   if (!url) {
@@ -80,15 +86,29 @@ wss.on("connection", (ws, request) => {
       }
 
       if (action === "move" && shapeId) {
-        // Update the existing shape entry using shapeId
-        await prismaClient.chat.updateMany({
-          where: { shapeId: shapeId, roomId: roomId },
-          data: {
-            message: message,
-            updatedAt: new Date(),
-            erased: false, // ensure shape is visible after move
-          },
-        });
+        // Debounce move actions per shape id
+        // Store the latest move message for this shape
+        latestMoveMessages[shapeId] = message;
+        // Clear any existing debounce timer for this shape
+        if (moveDebounceTimers[shapeId]) {
+          clearTimeout(moveDebounceTimers[shapeId]);
+        }
+        // Set a new debounce timer; only the last move in a burst is saved
+        moveDebounceTimers[shapeId] = setTimeout(async () => {
+          await prismaClient.chat.updateMany({
+            where: { shapeId: shapeId, roomId: roomId },
+            data: {
+              message: latestMoveMessages[shapeId],
+              updatedAt: new Date(),
+              erased: false,
+            },
+          });
+          // Clean up after saving
+          delete moveDebounceTimers[shapeId];
+          delete latestMoveMessages[shapeId];
+          console.log("Moved shape", shapeId, "in room", roomId);
+          
+        }, 80); // 80ms debounce
       } else if (action === "draw" && shapeId) {
         // Create a new entry for a new shape
         await prismaClient.chat.create({
