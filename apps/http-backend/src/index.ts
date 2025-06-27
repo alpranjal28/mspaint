@@ -484,6 +484,31 @@ app.get("/chats/:slug", middleware, async (req, res) => {
   }
 });
 
+// Permanently delete shapes that have been soft deleted for more than 24 hours
+const MS_IN_24_HOURS = 24 * 60 * 60 * 1000;
+
+setInterval(
+  async () => {
+    const cutoff = new Date(Date.now() - MS_IN_24_HOURS);
+    try {
+      const result = await prismaClient.chat.deleteMany({
+        where: {
+          erased: true,
+          updatedAt: { lt: cutoff },
+        },
+      });
+      if (result.count > 0) {
+        console.log(
+          `Permanently deleted ${result.count} shapes (erased > 24h)`
+        );
+      }
+    } catch (err) {
+      console.error("Error during permanent shape cleanup:", err);
+    }
+  },
+  60 * 60 * 1000
+); // Run every hour
+
 app.listen(port, () => {
   console.log(`http-backend listening on port ${port}`);
 });
