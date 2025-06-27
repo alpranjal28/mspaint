@@ -52,6 +52,10 @@ export default function Canvas({
   const [game, setGame] = useState<Game>();
   const [isInteracting, setIsInteracting] = useState(false);
 
+  socket.addEventListener("message", (e) => {
+    console.log("Message from server ", e.data);
+  });
+  
   useEffect(() => {
     if (game) {
       game.setTool(selectedTool);
@@ -244,6 +248,12 @@ export default function Canvas({
         <MenuOption onClick={() => game?.redo()}>
           <span className="text-2xl md:text-base">↪️</span>
           <span className="hidden md:inline ml-1">Redo</span>
+        </MenuOption>
+        <MenuOption onClick={() => {}}>
+          <span className="text-2xl md:text-base">
+            {socket.onmessage ? "W" : "L"}
+          </span>
+          <span className="hidden md:inline ml-1">Clear</span>
         </MenuOption>
       </div>
       {/* Hide scrollbars for tool bar on mobile */}
