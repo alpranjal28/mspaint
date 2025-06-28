@@ -2,8 +2,6 @@
   "extends": "@repo/typescript-config/base.json",
   "compilerOptions": {
     "rootDir": "./src",
-    "outDir": "./dist",
-    "module": "ESNext",
-    "target": "ES2022"
+    "outDir": "./dist"
   }
 }
