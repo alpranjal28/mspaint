@@ -1,10 +1,11 @@
 console.log("hello from ws backend");
 
-import WebSocket from "ws";
-import { verifyToken, verifiedUser } from "@repo/backend-common/config";
+import WebSocket, { WebSocketServer } from "ws";
+import { verifiedUser } from "@repo/backend-common/config";
 import { prismaClient } from "@repo/db-config/prisma";
+import { IncomingMessage } from "http";
 
-const wss = new WebSocket.Server({ port: 8080 });
+const wss = new WebSocketServer({ port: 8080 });
 
 // Efficient room/user management
 const roomMap = new Map<number, Set<WebSocket>>();
@@ -16,7 +17,7 @@ const userMap = new Map<WebSocket, { userId: string; rooms: Set<number> }>();
 const moveDebounceTimers: Record<string, NodeJS.Timeout> = {};
 const latestMoveMessages: Record<string, any> = {};
 
-wss.on("connection", (ws, request) => {
+wss.on("connection", (ws: WebSocket, request: IncomingMessage) => {
   console.log("new connection from", request.socket.remoteAddress);
   const url = request.url;
   if (!url) {
@@ -54,7 +55,7 @@ wss.on("connection", (ws, request) => {
         userMap.get(ws)!.rooms.add(roomId);
       }
       console.log("User", userId, "subscribed to room", roomId);
-      console.log("roomMap:",roomMap);
+      console.log("roomMap:", roomMap);
       console.log("userMap:", userMap);
       return;
     }
