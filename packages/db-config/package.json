@@ -2,9 +2,9 @@
   "name": "@repo/db-config",
   "version": "1.0.0",
   "description": "",
-  "main": "dist/index.js",
+  "main": "src/index.ts",
   "exports": {
-    "./prisma": "./dist/index.js"
+    "./prisma": "./src/index.ts"
   },
   "scripts": {
     "build": "prisma generate",
