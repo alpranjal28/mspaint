@@ -7,7 +7,10 @@
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "postinstall": "cd packages/db-init && npx prisma generate"
+    "bun-db": "cd packages/db-config && npx prisma generate && cd ../..",
+    "bun-web": "cd apps/web && bun run build && bun run start",
+    "bun-http": "cd apps/http-backend && bun src/index.ts",
+    "bun-ws": "cd apps/ws-backend && bun src/index.ts"
   },
   "devDependencies": {
     "prettier": "^3.5.0",
