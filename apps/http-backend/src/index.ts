@@ -1,5 +1,5 @@
 import express from "express";
-import { middleware } from "./middleware";
+import { middleware } from "./middleware.js";
 import {
   accessToken,
   hashPassword,
@@ -15,7 +15,7 @@ import {
 import cookieParser from "cookie-parser";
 import { prismaClient } from "@repo/db-config";
 import cors from "cors";
-import { generateShareCode } from "./tools";
+import { generateShareCode } from "./tools.js";
 
 const app = express();
 const port = process.env.PORT || 3030;
