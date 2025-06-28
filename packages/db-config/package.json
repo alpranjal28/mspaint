@@ -2,12 +2,12 @@
   "name": "@repo/db-config",
   "version": "1.0.0",
   "description": "",
-  "main": "src/index.ts",
+  "main": "dist/index.js",
   "exports": {
-    "./prisma": "./src/index.ts"
+    ".": "./dist/index.js"
   },
   "scripts": {
-    "build": "prisma generate",
+    "build": "tsc -b && prisma generate",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
