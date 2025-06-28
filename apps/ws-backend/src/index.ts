@@ -2,7 +2,7 @@ console.log("hello from ws backend");
 
 import WebSocket, { WebSocketServer } from "ws";
 import { verifiedUser } from "@repo/backend-common/config";
-import { prismaClient } from "@repo/db-config/prisma";
+import { prismaClient } from "@repo/db-config";
 import { IncomingMessage } from "http";
 
 const wss = new WebSocketServer({ port: 8080 });
