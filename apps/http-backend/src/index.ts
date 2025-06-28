@@ -13,7 +13,7 @@ import {
   CreateRoomSchems,
 } from "@repo/common/zod-types";
 import cookieParser from "cookie-parser";
-import { prismaClient } from "@repo/db-config/prisma";
+import { prismaClient } from "@repo/db-config";
 import cors from "cors";
 import { generateShareCode } from "./tools";
 
