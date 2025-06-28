@@ -2,11 +2,12 @@
   "name": "@repo/common",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "exports": {
-    "./zod-types": "./src/types.ts"
+    "./zod-types": "./dist/types.js"
   },
   "scripts": {
+    "build": "tsc -b",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -14,7 +15,8 @@
   "license": "ISC",
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
-    "@repo/typescript-config": "workspace:*"
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "^5.4.5"
   },
   "dependencies": {
     "zod": "^3.24.2"
