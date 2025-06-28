@@ -315,14 +315,14 @@ app.get("/rooms", middleware, async (req, res) => {
 
     // Combine and format rooms
     const rooms = [
-      ...ownedRooms.map((room) => ({
+      ...ownedRooms.map((room: (typeof ownedRooms)[0]) => ({
         id: room.id,
         name: room.slug,
         shareCode: room.shareCode || null,
         createdAt: room.createdAt.toISOString(),
         isOwner: true,
       })),
-      ...participatingRooms.map((room) => ({
+      ...participatingRooms.map((room: (typeof participatingRooms)[0]) => ({
         id: room.id,
         name: room.slug,
         joinedAt: room.createdAt.toISOString(),
