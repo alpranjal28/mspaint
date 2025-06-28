@@ -2,12 +2,12 @@
   "name": "@repo/db-config",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "exports": {
-    "./prisma": "./src/index.ts"
+    "./prisma": "./dist/index.js"
   },
   "scripts": {
-    "build": "prisma generate",
+    "build": "tsc -b && prisma generate",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -19,6 +19,7 @@
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
+    "typescript": "^5.4.5",
     "prisma": "^6.4.1"
   }
 }
