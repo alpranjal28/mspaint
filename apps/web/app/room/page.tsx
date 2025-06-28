@@ -38,6 +38,11 @@ export default function RoomsPage() {
   const [joinError, setJoinError] = useState<string | null>(null);
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      window.location.href = "/signin";
+      return;
+    }
     fetchRooms();
   }, []);
 

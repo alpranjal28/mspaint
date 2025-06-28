@@ -127,7 +127,7 @@ const LandingPage = () => {
             Ready to Start Creating?
           </h2>
           <a
-            href="/draw"
+            href="/room"
             className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 transition-colors"
           >
             Launch Drawing Board
