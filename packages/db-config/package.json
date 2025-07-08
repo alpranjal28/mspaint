@@ -7,19 +7,19 @@
     ".": "./dist/index.js"
   },
   "scripts": {
-    "build": "prisma generate && tsc -b",
+    "build": "npx prisma generate && tsc -b",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@prisma/client": "latest"
+    "@prisma/client": "latest",
+    "prisma": "^6.4.1"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "typescript": "^5.4.5",
-    "prisma": "^6.4.1"
+    "typescript": "^5.4.5"
   }
 }

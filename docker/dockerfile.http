@@ -1,0 +1,22 @@
+FROM node:22-alpine
+
+WORKDIR /app
+
+# copy package.json
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+COPY apps/http-backend/package.json apps/http-backend/
+COPY packages/ packages/
+
+RUN npm install -g pnpm
+RUN pnpm install
+
+# copy main files
+COPY apps/http-backend apps/http-backend/
+
+# Build your backend
+RUN pnpm run buildscript
+
+EXPOSE 3030
+
+# CMD [ "pnpm","run","start" ]
+CMD [ "pnpm", "run", "docker:http"]

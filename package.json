@@ -2,16 +2,20 @@
   "name": "with-tailwind",
   "private": true,
   "scripts": {
-    "build": "turbo run build",
+    "buildscript": "turbo run build",
     "dev": "turbo run dev",
+    "start": "turbo run start",
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "bun-db": "cd packages/db-config && npx prisma generate && cd ../..",
-    "bun-web": "cd apps/web && bun run build && bun run start",
-    "bun-http": "cd apps/http-backend && pnpm i && bun src/index.ts",
-    "bun-ws": "cd apps/ws-backend && pnpm i && bun src/index.ts",
-    "start": "turbo run start"
+    "db:migrate": "cd packages/db-config && npx prisma migrate dev && cd ../..",
+    "db:generate": "cd packages/db-config && npx prisma generate && cd ../..",
+    "http":"cd apps/http-backend && pnpm run start",
+    "ws":"cd apps/ws-backend && pnpm run start",
+    "web":"cd apps/web && pnpm run start",
+    "docker:http": "pnpm run db:generate && pnpm run http",
+    "docker:ws": "pnpm run db:generate && pnpm run ws",
+    "docker:web": "pnpm run web"
   },
   "devDependencies": {
     "prettier": "^3.5.0",
