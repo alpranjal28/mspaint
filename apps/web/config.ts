@@ -1,2 +1,2 @@
-export const HTTP_BACKEND_URL = "http://localhost:3030";
-export const WS_BACKEND_URL = "ws://localhost:8080";
+export const HTTP_BACKEND_URL = "http://draw.altherius.in/api";
+export const WS_BACKEND_URL = "ws://draw.altherius.in/ws";
