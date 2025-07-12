@@ -5,7 +5,7 @@ import { verifiedUser } from "@repo/backend-common/config";
 import { prismaClient } from "@repo/db-config";
 import { IncomingMessage } from "http";
 
-const wss = new WebSocketServer({ port: 8080 });
+const wss = new WebSocketServer({ port: 8080, host: "0.0.0.0" });
 
 // Efficient room/user management
 const roomMap = new Map<number, Set<WebSocket>>();

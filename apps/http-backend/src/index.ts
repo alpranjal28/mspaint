@@ -509,6 +509,6 @@ setInterval(
   60 * 60 * 1000
 ); // Run every hour
 
-app.listen(port, () => {
+app.listen(3030, "0.0.0.0", () => {
   console.log(`http-backend listening on port ${port}`);
 });

@@ -40,10 +40,13 @@ export default function LoadingCanvas({ roomId }: { roomId: number }) {
   }, []);
 
   useEffect(() => {
+    console.log("sending WS connection request");
     const ws = new WebSocket(
       `${WS_BACKEND_URL}?token=${localStorage.getItem("token")}`
     );
-    ws.onerror = (e) => console.log(e);
+    console.log("sent WS connection request");
+    
+    ws.onerror = (e) => console.log("Websocket error:", e);
     ws.onopen = () => {
       console.log(`connecting to ws canvas of room ${roomId}`);
 
@@ -56,7 +59,7 @@ export default function LoadingCanvas({ roomId }: { roomId: number }) {
       console.log("disconnected from ws canvas of room ", roomId);
       setSocket(null);
     };
-  }, []);
+  }, [roomId]);
 
   if (!socket) {
     return (
