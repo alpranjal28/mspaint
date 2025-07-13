@@ -152,7 +152,7 @@ app.post("/refresh-token", async (req, res) => {
     // Issue new access token (and optionally a new refresh token)
     const newAccessToken = issueAccessToken(user.id, user.email);
     // Optionally rotate refresh token:
-    const newRefreshToken = refreshToken(user.id, user.username);
+    const newRefreshToken = issueRefreshToken(user.id, user.username);
 
     res.cookie("refreshToken", newRefreshToken, {
       httpOnly: true,
@@ -181,16 +181,16 @@ app.post("/room", middleware, async (req, res) => {
   console.log("crossed middleware");
 
   try {
-    const pardsedData = CreateRoomSchems.safeParse(req.body);
-    if (!pardsedData.success) {
-      res.status(400).json(pardsedData.error);
+    const parsedData = CreateRoomSchems.safeParse(req.body);
+    if (!parsedData.success) {
+      res.status(400).json(parsedData.error);
       return;
     }
-    console.log("pardsedData => ", pardsedData);
+    console.log("pardsedData => ", parsedData);
 
     // Check if room name already exists
     const existingRoom = await prismaClient.room.findFirst({
-      where: { slug: pardsedData.data.name },
+      where: { slug: parsedData.data.name },
     });
     if (existingRoom) {
       res.status(400).json({ message: "Room name already exists" });
@@ -210,8 +210,8 @@ app.post("/room", middleware, async (req, res) => {
     // create room
     const room = await prismaClient.room.create({
       data: {
-        adminId: req.body.JwtPayload.userId,
-        slug: pardsedData.data.name,
+        adminId: req.user.adminId,
+        slug: parsedData.data.name,
         shareCode,
       },
     });
@@ -232,10 +232,7 @@ app.post("/room/join", middleware, async (req, res) => {
       return;
     }
 
-    const parsedData = verifyToken(req.headers.authorization!) as {
-      userId: string;
-    };
-    const userId = parsedData.userId;
+    const userId = req.user.userId;
 
     const room = await prismaClient.room.findUnique({
       where: { shareCode: code },
@@ -276,12 +273,7 @@ app.post("/room/join", middleware, async (req, res) => {
 
 app.get("/rooms", middleware, async (req, res) => {
   try {
-    const parsedData = verifyToken(req.headers.authorization!) as {
-      userId: string;
-    };
-    console.log("parsedData => ", parsedData);
-    // const userId = req.body.JwtPayload.userId;
-    const userId = parsedData.userId;
+    const userId = req.user.userId;
 
     // Get rooms where user is admin
     const ownedRooms = await prismaClient.room.findMany({
@@ -342,32 +334,48 @@ app.get("/rooms", middleware, async (req, res) => {
   }
 });
 
-app.get("/room/:roomId", middleware, async (req, res) => {
-  try {
-    const roomId = Number(req.params.roomId);
-    if (isNaN(Number(roomId))) {
-      res.status(400).json({ message: "Invalid room ID" });
-      return;
-    }
+// app.get("/room/:roomId", middleware, async (req, res) => {
+//   try {
+//     // Add before getting messages in /room/:roomId
+//     const userId = verifyToken(req.headers.authorization!).userId;
 
-    console.log("get messages from roomId -> ", roomId);
+//     // Check if user has access to room
+//     const hasAccess = await prismaClient.room.findFirst({
+//       where: {
+//         id: roomId,
+//         OR: [{ adminId: userId }, { participants: { some: { userId } } }],
+//       },
+//     });
 
-    // get messages from room
-    const messages = await prismaClient.chat.findMany({
-      where: {
-        roomId: roomId,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-    });
+//     if (!hasAccess) {
+//       res.status(403).json({ message: "Access denied" });
+//       return;
+//     }
 
-    res.json({ messages });
-  } catch (error) {
-    console.error("Get room messages error:", error);
-    res.status(500).json({ message: "Failed to fetch room messages" });
-  }
-});
+//     const roomId = Number(req.params.roomId);
+//     if (isNaN(Number(roomId))) {
+//       res.status(400).json({ message: "Invalid room ID" });
+//       return;
+//     }
+
+//     console.log("get messages from roomId -> ", roomId);
+
+//     // get messages from room
+//     const messages = await prismaClient.chat.findMany({
+//       where: {
+//         roomId: roomId,
+//       },
+//       orderBy: {
+//         createdAt: "desc",
+//       },
+//     });
+
+//     res.json({ messages });
+//   } catch (error) {
+//     console.error("Get room messages error:", error);
+//     res.status(500).json({ message: "Failed to fetch room messages" });
+//   }
+// });
 
 app.delete(
   "/room/:roomId/delete",
@@ -380,10 +388,7 @@ app.delete(
         return;
       }
 
-      const parsedData = verifyToken(req.headers.authorization!) as {
-        userId: string;
-      };
-      const userId = parsedData.userId;
+      const userId = req.user.userId;
 
       // Check if room exists and user is admin
       const room = await prismaClient.room.findFirst({
@@ -434,10 +439,7 @@ app.post("/room/:roomId/leave", middleware, async (req, res) => {
       return;
     }
 
-    const parsedData = verifyToken(req.headers.authorization!) as {
-      userId: string;
-    };
-    const userId = parsedData.userId;
+    const userId = req.user.userId;
 
     // Check if user is a participant
     const participant = await prismaClient.roomParticipant.findUnique({

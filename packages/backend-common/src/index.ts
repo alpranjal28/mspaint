@@ -5,7 +5,7 @@ export const JWT_SECRET = process.env.JWT_SECRET || "secretcode";
 
 // token
 export function issueAccessToken(userId: string, email: string) {
-  return jwt.sign({ userId, email }, process.env.JWT_SECRET!, {
+  return jwt.sign({ userId, email }, JWT_SECRET, {
     expiresIn: "3d",
   });
 }
@@ -16,8 +16,17 @@ export function issueRefreshToken(userId: string, name: string) {
 }
 
 export function verifyToken(token: string) {
-  console.log("verifing token");
-  return jwt.verify(token, JWT_SECRET);
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      throw new Error('TOKEN_EXPIRED');
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      throw new Error('TOKEN_INVALID');
+    }
+    throw error;
+  }
 }
 
 export function verifiedUser(token: string): string | null {

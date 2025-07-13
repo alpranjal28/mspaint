@@ -1,20 +1,26 @@
 import { NextFunction, Request, Response } from "express";
 import { verifyToken } from "@repo/backend-common/config";
 
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
+}
+
 export function middleware(req: Request, res: Response, next: NextFunction) {
-  console.log("middleware");
   const token = req.headers.authorization;
+
   if (!token) {
-    res.status(401).send("Unauthorized");
+    res.status(401).json({ message: "No token provided" });
     return;
   }
-  const decoded = verifyToken(token);
-  console.log("decoded token", decoded);
 
-  if (decoded) {
-    req.body.JwtPayload = decoded;
+  try {
+    req.user = verifyToken(token);
     next();
-  } else {
-    res.status(401).send("Unauthorized");
+  } catch (error) {
+    res.status(401).json({ message: "Invalid token" });
   }
 }
