@@ -1,5 +1,6 @@
 import axios from "axios";
 import { HTTP_BACKEND_URL } from "../config";
+import { refreshToken } from "../src/lib/auth";
 
 // shapes
 interface RectProps {
@@ -75,6 +76,7 @@ export interface MoveAction {
 }
 export type Action = DrawAction | EraseAction | MoveAction;
 
+
 export default async function getExistingShapes(
   roomId: number
 ): Promise<Payload[]> {
@@ -115,8 +117,14 @@ export default async function getExistingShapes(
 
     console.log("valid Payloads from server", validPayloads);
     return validPayloads as Payload[];
-  } catch (error) {
-    console.error("Error fetching shapes:", error);
+  } catch (error: any) {
+    console.log("Error fetching shapes:", error);
+    if (error.response && error.response.status === 401) {
+      const refreshed = await refreshToken();
+      if (refreshed) {
+        return getExistingShapes(roomId); // Retry the request
+      }
+    }
     return [];
   }
 }
