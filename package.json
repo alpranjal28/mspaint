@@ -3,20 +3,32 @@
   "private": true,
   "scripts": {
     "buildscript": "turbo run build",
-    "dev": "turbo run dev",
+    "dev": "NODE_ENV=development turbo run dev",
     "start": "turbo run start",
     "lint": "turbo run lint",
     "check-types": "turbo run check-types",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
+    
+    
+    "dev:prod": "NODE_ENV=production turbo run dev",
+    "build:prod": "NODE_ENV=production turbo run build",
+    "start:local": "NODE_ENV=development turbo run start",
+    "start:prod": "NODE_ENV=production turbo run start",
+    
+    
     "db:generate": "cd packages/db-config && npx prisma generate && cd ../..",
     "db:migrate": "cd packages/db-config && npx prisma migrate dev && cd ../..",
     "db:migrate:deploy": "cd packages/db-config && npx prisma migrate deploy && cd ../..",
-    "http":"cd apps/http-backend && pnpm run start",
-    "ws":"cd apps/ws-backend && pnpm run start",
-    "web":"cd apps/web && pnpm run start",
+
+
+    "http": "cd apps/http-backend && pnpm run start",
+    "ws": "cd apps/ws-backend && pnpm run start",
+    "web": "cd apps/web && pnpm run start",
+    
+    
     "docker:http": "pnpm run db:generate && pnpm run http",
     "docker:ws": "pnpm run db:generate && pnpm run ws",
-    "docker:web": "pnpm run web"
+    "docker:web": "NODE_ENV=production pnpm run web"
   },
   "devDependencies": {
     "prettier": "^3.5.0",

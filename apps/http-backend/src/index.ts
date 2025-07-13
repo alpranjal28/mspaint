@@ -334,48 +334,48 @@ app.get("/rooms", middleware, async (req, res) => {
   }
 });
 
-// app.get("/room/:roomId", middleware, async (req, res) => {
-//   try {
-//     // Add before getting messages in /room/:roomId
-//     const userId = verifyToken(req.headers.authorization!).userId;
+app.get("/room/:roomId", middleware, async (req, res) => {
+  try {
+    const roomId = Number(req.params.roomId);
+    // Add before getting messages in /room/:roomId
+    const userId = req.user.userId;
 
-//     // Check if user has access to room
-//     const hasAccess = await prismaClient.room.findFirst({
-//       where: {
-//         id: roomId,
-//         OR: [{ adminId: userId }, { participants: { some: { userId } } }],
-//       },
-//     });
+    // Check if user has access to room
+    const hasAccess = await prismaClient.room.findFirst({
+      where: {
+        id: roomId,
+        OR: [{ adminId: userId }, { participants: { some: { userId } } }],
+      },
+    });
 
-//     if (!hasAccess) {
-//       res.status(403).json({ message: "Access denied" });
-//       return;
-//     }
+    if (!hasAccess) {
+      res.status(403).json({ message: "Access denied" });
+      return;
+    }
 
-//     const roomId = Number(req.params.roomId);
-//     if (isNaN(Number(roomId))) {
-//       res.status(400).json({ message: "Invalid room ID" });
-//       return;
-//     }
+    if (isNaN(Number(roomId))) {
+      res.status(400).json({ message: "Invalid room ID" });
+      return;
+    }
 
-//     console.log("get messages from roomId -> ", roomId);
+    console.log("get messages from roomId -> ", roomId);
 
-//     // get messages from room
-//     const messages = await prismaClient.chat.findMany({
-//       where: {
-//         roomId: roomId,
-//       },
-//       orderBy: {
-//         createdAt: "desc",
-//       },
-//     });
+    // get messages from room
+    const messages = await prismaClient.chat.findMany({
+      where: {
+        roomId: roomId,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
 
-//     res.json({ messages });
-//   } catch (error) {
-//     console.error("Get room messages error:", error);
-//     res.status(500).json({ message: "Failed to fetch room messages" });
-//   }
-// });
+    res.json({ messages });
+  } catch (error) {
+    console.error("Get room messages error:", error);
+    res.status(500).json({ message: "Failed to fetch room messages" });
+  }
+});
 
 app.delete(
   "/room/:roomId/delete",
