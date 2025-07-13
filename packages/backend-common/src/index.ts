@@ -4,14 +4,14 @@ import bcrypt from "bcrypt";
 export const JWT_SECRET = process.env.JWT_SECRET || "secretcode";
 
 // token
-export function accessToken(userId: string, email: string) {
-  return jwt.sign({ userId, email }, JWT_SECRET, {
-    expiresIn: "1d",
+export function accessToken(userId: number, email: string) {
+  return jwt.sign({ userId, email }, process.env.JWT_SECRET!, {
+    expiresIn: "3d",
   });
 }
 export function refreshToken(userId: string, name: string) {
   return jwt.sign({ userId, name }, JWT_SECRET, {
-    expiresIn: "1d",
+    expiresIn: "7d", // token valid for 7 days
   });
 }
 

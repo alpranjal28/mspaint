@@ -68,7 +68,7 @@ app.post("/signup", async (req, res) => {
     res.cookie("refreshToken", refToken, {
       httpOnly: true,
       secure: true,
-      maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
     res.json({ username: createdUser.username, token });
@@ -113,7 +113,7 @@ app.post("/signin", async (req, res) => {
     res.cookie("refreshToken", refToken, {
       httpOnly: true,
       secure: true,
-      maxAge: 3 * 24 * 60 * 60 * 1000, // 3 days
+      maxAge: 7 * 24 * 60 * 60 * 1000, // cookie valid for 7 days
     });
 
     res.json({ username, token });
@@ -152,8 +152,13 @@ app.post("/refresh-token", async (req, res) => {
     // Issue new access token (and optionally a new refresh token)
     const newAccessToken = accessToken(user.id, user.email);
     // Optionally rotate refresh token:
-    // const newRefreshToken = refreshToken(user.id, user.username);
-    // res.cookie("refreshToken", newRefreshToken, { ... });
+    const newRefreshToken = refreshToken(user.id, user.username);
+
+    res.cookie("refreshToken", newRefreshToken, {
+      httpOnly: true,
+      secure: true,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    });
 
     res.json({ token: newAccessToken, username: user.username });
   } catch (err) {
