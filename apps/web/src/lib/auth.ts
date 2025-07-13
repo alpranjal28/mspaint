@@ -2,7 +2,7 @@
 import axios from 'axios';
 import { HTTP_BACKEND_URL } from '../../config';
 
-export async function refreshToken() {
+export async function useRefreshToken() {
   try {
     const response = await axios.post(`${HTTP_BACKEND_URL}/refresh-token`, {}, {
       withCredentials: true, // Send cookies

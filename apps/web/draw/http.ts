@@ -1,6 +1,6 @@
 import axios from "axios";
 import { HTTP_BACKEND_URL } from "../config";
-import { refreshToken } from "../src/lib/auth";
+import { useRefreshToken } from "../src/lib/auth";
 
 // shapes
 interface RectProps {
@@ -120,7 +120,7 @@ export default async function getExistingShapes(
   } catch (error: any) {
     console.log("Error fetching shapes:", error);
     if (error.response && error.response.status === 401) {
-      const refreshed = await refreshToken();
+      const refreshed = await useRefreshToken();
       if (refreshed) {
         return getExistingShapes(roomId); // Retry the request
       }

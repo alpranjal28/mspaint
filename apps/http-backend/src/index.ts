@@ -1,10 +1,10 @@
 import express from "express";
 import { middleware } from "./middleware.js";
 import {
-  accessToken,
+  issueAccessToken,
   hashPassword,
   checkPassword,
-  refreshToken,
+  issueRefreshToken,
   verifyToken,
 } from "@repo/backend-common/config";
 import {
@@ -62,8 +62,8 @@ app.post("/signup", async (req, res) => {
       },
     });
 
-    const token = accessToken(createdUser.id, createdUser.email);
-    const refToken = refreshToken(createdUser.id, createdUser.username);
+    const token = issueAccessToken(createdUser.id, createdUser.email);
+    const refToken = issueRefreshToken(createdUser.id, createdUser.username);
 
     res.cookie("refreshToken", refToken, {
       httpOnly: true,
@@ -106,8 +106,8 @@ app.post("/signin", async (req, res) => {
       return;
     }
 
-    const token = accessToken(user.id, user.email);
-    const refToken = refreshToken(user.id, user.username);
+    const token = issueAccessToken(user.id, user.email);
+    const refToken = issueRefreshToken(user.id, user.username);
     const username = user.username;
 
     res.cookie("refreshToken", refToken, {
@@ -150,7 +150,7 @@ app.post("/refresh-token", async (req, res) => {
     }
 
     // Issue new access token (and optionally a new refresh token)
-    const newAccessToken = accessToken(user.id, user.email);
+    const newAccessToken = issueAccessToken(user.id, user.email);
     // Optionally rotate refresh token:
     const newRefreshToken = refreshToken(user.id, user.username);
 
