@@ -31,6 +31,7 @@ app.get("/", (req, res) => {
 });
 
 // auth routes
+// signup user
 app.post("/signup", async (req, res) => {
   const parsedData = CreateUserSchema.safeParse(req.body);
   if (!parsedData.success) {
@@ -81,6 +82,7 @@ app.post("/signup", async (req, res) => {
   }
 });
 
+// signin user
 app.post("/signin", async (req, res) => {
   try {
     const data = SignInSchema.safeParse(req.body);
@@ -210,7 +212,7 @@ app.post("/room", middleware, async (req, res) => {
     // create room
     const room = await prismaClient.room.create({
       data: {
-        adminId: req.user.adminId,
+        adminId: req.user.userId, //admin of the room created is current user
         slug: parsedData.data.name,
         shareCode,
       },
@@ -224,6 +226,7 @@ app.post("/room", middleware, async (req, res) => {
   }
 });
 
+// join another users created room using their room share code
 app.post("/room/join", middleware, async (req, res) => {
   try {
     const { code }: { code: string } = req.body;
@@ -258,6 +261,7 @@ app.post("/room/join", middleware, async (req, res) => {
       return;
     }
 
+    // add current user to the rooms participant list
     await prismaClient.roomParticipant.create({
       data: {
         userId,
@@ -271,6 +275,7 @@ app.post("/room/join", middleware, async (req, res) => {
   }
 });
 
+// list all rooms
 app.get("/rooms", middleware, async (req, res) => {
   try {
     const userId = req.user.userId;
@@ -334,6 +339,7 @@ app.get("/rooms", middleware, async (req, res) => {
   }
 });
 
+// join the room
 app.get("/room/:roomId", middleware, async (req, res) => {
   try {
     const roomId = Number(req.params.roomId);
@@ -377,6 +383,7 @@ app.get("/room/:roomId", middleware, async (req, res) => {
   }
 });
 
+// current user delete an owned room 
 app.delete(
   "/room/:roomId/delete",
   middleware,
@@ -431,6 +438,7 @@ app.delete(
   }
 );
 
+// leave a room where current user is participant in
 app.post("/room/:roomId/leave", middleware, async (req, res) => {
   try {
     const roomId = Number(req.params.roomId);
