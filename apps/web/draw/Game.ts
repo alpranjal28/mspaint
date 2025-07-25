@@ -22,7 +22,12 @@ interface SelectionState {
   resizeHandle: string;
   isMultiSelect: boolean;
   shapeOffsets: Map<string, { x: number; y: number }>;
-  originalBoundingBox?: { minX: number; minY: number; maxX: number; maxY: number };
+  originalBoundingBox?: {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  };
 }
 
 export class Game {
@@ -366,97 +371,140 @@ export class Game {
     const originalBBox = this.selection.originalBoundingBox;
     const handle = this.selection.resizeHandle;
 
-    let scaleX = 1, scaleY = 1, translateX = 0, translateY = 0;
+    let scaleX = 1,
+      scaleY = 1,
+      translateX = 0,
+      translateY = 0;
 
     const originalWidth = originalBBox.maxX - originalBBox.minX;
     const originalHeight = originalBBox.maxY - originalBBox.minY;
 
     if (handle.includes("e")) scaleX = (originalWidth + dx) / originalWidth;
     if (handle.includes("w")) {
-        scaleX = (originalWidth - dx) / originalWidth;
-        translateX = dx;
+      scaleX = (originalWidth - dx) / originalWidth;
+      translateX = dx;
     }
     if (handle.includes("s")) scaleY = (originalHeight + dy) / originalHeight;
     if (handle.includes("n")) {
-        scaleY = (originalHeight - dy) / originalHeight;
-        translateY = dy;
+      scaleY = (originalHeight - dy) / originalHeight;
+      translateY = dy;
     }
 
     if (handle.length === 2) {
-        if (e.shiftKey) {
-            const scale = Math.max(scaleX, scaleY);
-            scaleX = scale;
-            scaleY = scale;
-            if (handle.includes("w")) translateX = originalWidth * (1 - scale);
-            if (handle.includes("n")) translateY = originalHeight * (1 - scale);
-        }
+      if (e.shiftKey) {
+        const scale = Math.max(scaleX, scaleY);
+        scaleX = scale;
+        scaleY = scale;
+        if (handle.includes("w")) translateX = originalWidth * (1 - scale);
+        if (handle.includes("n")) translateY = originalHeight * (1 - scale);
+      }
     }
 
     for (const originalShape of this.originalShapes.values()) {
-        const shape = this.tempShapes.find(s => s.id === originalShape.id);
-        if (shape && shape.shape) {
-            const originalS = originalShape.shape!;
-            const s = shape.shape;
+      const shape = this.tempShapes.find((s) => s.id === originalShape.id);
+      if (shape && shape.shape) {
+        const originalS = originalShape.shape!;
+        const s = shape.shape;
 
-            const relativeX = (this.getShapePosition(originalShape).x - originalBBox.minX) / originalWidth;
-            const relativeY = (this.getShapePosition(originalShape).y - originalBBox.minY) / originalHeight;
+        const relativeX =
+          (this.getShapePosition(originalShape).x - originalBBox.minX) /
+          originalWidth;
+        const relativeY =
+          (this.getShapePosition(originalShape).y - originalBBox.minY) /
+          originalHeight;
 
-            const newX = originalBBox.minX + translateX + (this.getShapePosition(originalShape).x - originalBBox.minX) * scaleX;
-            const newY = originalBBox.minY + translateY + (this.getShapePosition(originalShape).y - originalBBox.minY) * scaleY;
+        const newX =
+          originalBBox.minX +
+          translateX +
+          (this.getShapePosition(originalShape).x - originalBBox.minX) * scaleX;
+        const newY =
+          originalBBox.minY +
+          translateY +
+          (this.getShapePosition(originalShape).y - originalBBox.minY) * scaleY;
 
-            this.updateShapePosition(shape, { x: newX, y: newY });
+        this.updateShapePosition(shape, { x: newX, y: newY });
 
-            switch (s.type) {
-                case "rect":
-                    s.width = (originalS as any).width * scaleX;
-                    s.height = (originalS as any).height * scaleY;
-                    break;
-                case "ellipse":
-                    s.rx = (originalS as any).rx * scaleX;
-                    s.ry = (originalS as any).ry * scaleY;
-                    break;
-                case "line":
-                    const originalLine = originalS as any;
-                    const originalStartX = (originalLine.x - originalBBox.minX) / originalWidth;
-                    const originalStartY = (originalLine.y - originalBBox.minY) / originalHeight;
-                    const originalEndX = (originalLine.x2 - originalBBox.minX) / originalWidth;
-                    const originalEndY = (originalLine.y2 - originalBBox.minY) / originalHeight;
+        switch (s.type) {
+          case "rect":
+            s.width = (originalS as any).width * scaleX;
+            s.height = (originalS as any).height * scaleY;
+            break;
+          case "ellipse":
+            s.rx = (originalS as any).rx * scaleX;
+            s.ry = (originalS as any).ry * scaleY;
+            break;
+          case "line":
+            const originalLine = originalS as any;
+            const originalStartX =
+              (originalLine.x - originalBBox.minX) / originalWidth;
+            const originalStartY =
+              (originalLine.y - originalBBox.minY) / originalHeight;
+            const originalEndX =
+              (originalLine.x2 - originalBBox.minX) / originalWidth;
+            const originalEndY =
+              (originalLine.y2 - originalBBox.minY) / originalHeight;
 
-                    s.x = originalBBox.minX + translateX + originalStartX * originalWidth * scaleX;
-                    s.y = originalBBox.minY + translateY + originalStartY * originalHeight * scaleY;
-                    s.x2 = originalBBox.minX + translateX + originalEndX * originalWidth * scaleX;
-                    s.y2 = originalBBox.minY + translateY + originalEndY * originalHeight * scaleY;
-                    break;
-                case "pencil":
-                    if (s.points && (originalS as any).points) {
-                        s.points = (originalS as any).points.map((p: any) => ({
-                            x: originalBBox.minX + translateX + (p.x - originalBBox.minX) * scaleX,
-                            y: originalBBox.minY + translateY + (p.y - originalBBox.minY) * scaleY,
-                        }));
-                    }
-                    break;
+            s.x =
+              originalBBox.minX +
+              translateX +
+              originalStartX * originalWidth * scaleX;
+            s.y =
+              originalBBox.minY +
+              translateY +
+              originalStartY * originalHeight * scaleY;
+            s.x2 =
+              originalBBox.minX +
+              translateX +
+              originalEndX * originalWidth * scaleX;
+            s.y2 =
+              originalBBox.minY +
+              translateY +
+              originalEndY * originalHeight * scaleY;
+            break;
+          case "pencil":
+            if (s.points && (originalS as any).points) {
+              s.points = (originalS as any).points.map((p: any) => ({
+                x:
+                  originalBBox.minX +
+                  translateX +
+                  (p.x - originalBBox.minX) * scaleX,
+                y:
+                  originalBBox.minY +
+                  translateY +
+                  (p.y - originalBBox.minY) * scaleY,
+              }));
             }
-            shape.timestamp = Date.now();
-            shape.function = "move";
-            this.sendShapeMessage(shape);
+            break;
+          case "text":
+            s.fontSize = (originalS as any).fontSize * Math.max(scaleX, scaleY);
+            break;
         }
+        shape.timestamp = Date.now();
+        shape.function = "move";
+        this.sendShapeMessage(shape);
+      }
     }
     this.render();
   }
 
   private resizeLine(x: number, y: number) {
     const selectedShape = this.selection.selectedShapes[0];
-    if (this.selection.selectedShapes.length !== 1 || !selectedShape || selectedShape.shape?.type !== 'line') return;
+    if (
+      this.selection.selectedShapes.length !== 1 ||
+      !selectedShape ||
+      selectedShape.shape?.type !== "line"
+    )
+      return;
 
     const shape = selectedShape;
     const line = shape.shape as any;
 
-    if (this.selection.resizeHandle === 'start') {
-        line.x = x;
-        line.y = y;
-    } else if (this.selection.resizeHandle === 'end') {
-        line.x2 = x;
-        line.y2 = y;
+    if (this.selection.resizeHandle === "start") {
+      line.x = x;
+      line.y = y;
+    } else if (this.selection.resizeHandle === "end") {
+      line.x2 = x;
+      line.y2 = y;
     }
 
     shape.timestamp = Date.now();
@@ -674,31 +722,37 @@ export class Game {
 
         const lineHandle = this.getLineResizeHandle(pos);
         if (lineHandle) {
-            this.selection.isResizing = true;
-            this.selection.resizeHandle = lineHandle;
-            this.selection.startX = pos.x;
-            this.selection.startY = pos.y;
-            this.originalShapes.clear();
-            this.selection.selectedShapes.forEach(shape => {
-                this.originalShapes.set(shape.id, JSON.parse(JSON.stringify(shape)));
-            });
-            this.canvas.style.cursor = "crosshair";
-            return;
+          this.selection.isResizing = true;
+          this.selection.resizeHandle = lineHandle;
+          this.selection.startX = pos.x;
+          this.selection.startY = pos.y;
+          this.originalShapes.clear();
+          this.selection.selectedShapes.forEach((shape) => {
+            this.originalShapes.set(
+              shape.id,
+              JSON.parse(JSON.stringify(shape))
+            );
+          });
+          this.canvas.style.cursor = "crosshair";
+          return;
         }
 
         const handle = this.getBoundingBoxResizeHandle(pos);
         if (handle) {
-            this.selection.isResizing = true;
-            this.selection.resizeHandle = handle;
-            this.selection.startX = pos.x;
-            this.selection.startY = pos.y;
-            this.selection.originalBoundingBox = this.getOverallBoundingBox()!;
-            this.originalShapes.clear();
-            this.selection.selectedShapes.forEach(shape => {
-                this.originalShapes.set(shape.id, JSON.parse(JSON.stringify(shape)));
-            });
-            this.canvas.style.cursor = this.getCursorForHandle(handle);
-            return;
+          this.selection.isResizing = true;
+          this.selection.resizeHandle = handle;
+          this.selection.startX = pos.x;
+          this.selection.startY = pos.y;
+          this.selection.originalBoundingBox = this.getOverallBoundingBox()!;
+          this.originalShapes.clear();
+          this.selection.selectedShapes.forEach((shape) => {
+            this.originalShapes.set(
+              shape.id,
+              JSON.parse(JSON.stringify(shape))
+            );
+          });
+          this.canvas.style.cursor = this.getCursorForHandle(handle);
+          return;
         }
 
         // Check if clicking on a resize handle of the currently selected shape
@@ -714,8 +768,11 @@ export class Game {
             this.selection.startY = pos.y;
             this.selection.originalBoundingBox = this.getOverallBoundingBox()!;
             this.originalShapes.clear();
-            this.selection.selectedShapes.forEach(shape => {
-                this.originalShapes.set(shape.id, JSON.parse(JSON.stringify(shape)));
+            this.selection.selectedShapes.forEach((shape) => {
+              this.originalShapes.set(
+                shape.id,
+                JSON.parse(JSON.stringify(shape))
+              );
             });
             this.canvas.style.cursor = this.getCursorForHandle(handle);
             return;
@@ -902,10 +959,13 @@ export class Game {
         // We're doing a box selection, just need to update the render
         this.render();
       } else if (this.selection.isResizing) {
-        if (this.selection.resizeHandle === 'start' || this.selection.resizeHandle === 'end') {
-            this.resizeLine(pos.x, pos.y);
+        if (
+          this.selection.resizeHandle === "start" ||
+          this.selection.resizeHandle === "end"
+        ) {
+          this.resizeLine(pos.x, pos.y);
         } else {
-            this.resizeGroup(pos.x, pos.y, e);
+          this.resizeGroup(pos.x, pos.y, e);
         }
       } else if (this.selection.isDragging) {
         // Move primary selected shape
@@ -1107,9 +1167,6 @@ export class Game {
     this.animate();
   };
 
-  
-
-
   private animate = () => {
     const lerp = (a: number, b: number) => a + (b - a) * 0.25;
     this.current.scale = lerp(this.current.scale, this.target.scale);
@@ -1262,6 +1319,7 @@ export class Game {
           x: startX,
           y: startY,
           text: this.textArea?.value || "Sample Text",
+          fontSize: 24 / this.current.scale, // Initial font size based on zoom
         };
     }
     return null;
@@ -1460,10 +1518,9 @@ export class Game {
             break;
           case "text":
             this.ctx.fillStyle = "white";
-            this.ctx.font = "20px sans-serif";
+            this.ctx.font = `${shape.fontSize}px sans-serif`;
             this.ctx.textBaseline = "top";
-            this.ctx.textAlign = "left";
-
+            this.ctx.textAlign = "left"; 
             // Handle multiline text
             const text = shape.text || "";
             const lines = text.split("\n");
@@ -1658,6 +1715,7 @@ export class Game {
         x,
         y,
         text,
+        fontSize: 24 / this.current.scale, // Initial font size based on zoom
       };
 
       // Add to shapes
@@ -1852,87 +1910,97 @@ export class Game {
   }
 
   // cleans up all Event listeners at disconnection/return statement
-  private getShapeBoundingBox(shape: Payload): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  private getShapeBoundingBox(
+    shape: Payload
+  ): { minX: number; minY: number; maxX: number; maxY: number } | null {
     if (!shape.shape) return null;
 
     const s = shape.shape;
     switch (s.type) {
-        case "rect":
-            return {
-                minX: s.x,
-                minY: s.y,
-                maxX: s.x + s.width,
-                maxY: s.y + s.height,
-            };
-        case "ellipse":
-            return {
-                minX: s.x - s.rx,
-                minY: s.y - s.ry,
-                maxX: s.x + s.rx,
-                maxY: s.y + s.ry,
-            };
-        case "line":
-            return {
-                minX: Math.min(s.x, s.x2),
-                minY: Math.min(s.y, s.y2),
-                maxX: Math.max(s.x, s.x2),
-                maxY: Math.max(s.y, s.y2),
-            };
-        case "pencil":
-            if (!s.points || s.points.length === 0) return null;
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            for (const p of s.points) {
-                minX = Math.min(minX, p.x);
-                minY = Math.min(minY, p.y);
-                maxX = Math.max(maxX, p.x);
-                maxY = Math.max(maxY, p.y);
-            }
-            return { minX, minY, maxX, maxY };
-        case "text":
-            const text = s.text || "";
-            const lines = text.split("\n");
-            const lineHeight = 24;
-            const textHeight = lines.length * lineHeight;
-            let maxWidth = 0;
-            lines.forEach((line: string) => {
-                const width = this.ctx.measureText(line).width;
-                maxWidth = Math.max(maxWidth, width);
-            });
-            return {
-                minX: s.x,
-                minY: s.y,
-                maxX: s.x + maxWidth,
-                maxY: s.y + textHeight,
-            };
-        default:
-            return null;
+      case "rect":
+        return {
+          minX: s.x,
+          minY: s.y,
+          maxX: s.x + s.width,
+          maxY: s.y + s.height,
+        };
+      case "ellipse":
+        return {
+          minX: s.x - s.rx,
+          minY: s.y - s.ry,
+          maxX: s.x + s.rx,
+          maxY: s.y + s.ry,
+        };
+      case "line":
+        return {
+          minX: Math.min(s.x, s.x2),
+          minY: Math.min(s.y, s.y2),
+          maxX: Math.max(s.x, s.x2),
+          maxY: Math.max(s.y, s.y2),
+        };
+      case "pencil":
+        if (!s.points || s.points.length === 0) return null;
+        let minX = Infinity,
+          minY = Infinity,
+          maxX = -Infinity,
+          maxY = -Infinity;
+        for (const p of s.points) {
+          minX = Math.min(minX, p.x);
+          minY = Math.min(minY, p.y);
+          maxX = Math.max(maxX, p.x);
+          maxY = Math.max(maxY, p.y);
+        }
+        return { minX, minY, maxX, maxY };
+      case "text":
+        const text = s.text || "";
+        const lines = text.split("\n");
+        const lineHeight = 24;
+        const textHeight = lines.length * lineHeight;
+        let maxWidth = 0;
+        lines.forEach((line: string) => {
+          const width = this.ctx.measureText(line).width;
+          maxWidth = Math.max(maxWidth, width);
+        });
+        return {
+          minX: s.x,
+          minY: s.y,
+          maxX: s.x + maxWidth,
+          maxY: s.y + textHeight,
+        };
+      default:
+        return null;
     }
   }
 
-  private getOverallBoundingBox(): { minX: number; minY: number; maxX: number; maxY: number } | null {
+  private getOverallBoundingBox(): {
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+  } | null {
     if (this.selection.selectedShapes.length === 0) {
-        return null;
+      return null;
     }
 
     let overallBBox = {
-        minX: Infinity,
-        minY: Infinity,
-        maxX: -Infinity,
-        maxY: -Infinity,
+      minX: Infinity,
+      minY: Infinity,
+      maxX: -Infinity,
+      maxY: -Infinity,
     };
 
     for (const shape of this.selection.selectedShapes) {
-        const bbox = this.getShapeBoundingBox(shape);
-        if (bbox) {
-            overallBBox.minX = Math.min(overallBBox.minX, bbox.minX);
-            overallBBox.minY = Math.min(overallBBox.minY, bbox.minY);
-            overallBBox.maxX = Math.max(overallBBox.maxX, bbox.maxX);
-            overallBBox.maxY = Math.max(overallBBox.maxY, bbox.maxY);
-        }
+      const bbox = this.getShapeBoundingBox(shape);
+      if (bbox) {
+        overallBBox.minX = Math.min(overallBBox.minX, bbox.minX);
+        overallBBox.minY = Math.min(overallBBox.minY, bbox.minY);
+        overallBBox.maxX = Math.max(overallBBox.maxX, bbox.maxX);
+        overallBBox.maxY = Math.max(overallBBox.maxY, bbox.maxY);
+      }
     }
 
     if (!isFinite(overallBBox.minX)) {
-        return null;
+      return null;
     }
     return overallBBox;
   }
@@ -1951,41 +2019,76 @@ export class Game {
     const height = overallBBox.maxY - overallBBox.minY + 2 * margin;
 
     // Check corners
-    if (Math.abs(pos.x - x) <= handleSize && Math.abs(pos.y - y) <= handleSize) return "nw";
-    if (Math.abs(pos.x - (x + width)) <= handleSize && Math.abs(pos.y - y) <= handleSize) return "ne";
-    if (Math.abs(pos.x - x) <= handleSize && Math.abs(pos.y - (y + height)) <= handleSize) return "sw";
-    if (Math.abs(pos.x - (x + width)) <= handleSize && Math.abs(pos.y - (y + height)) <= handleSize) return "se";
+    if (Math.abs(pos.x - x) <= handleSize && Math.abs(pos.y - y) <= handleSize)
+      return "nw";
+    if (
+      Math.abs(pos.x - (x + width)) <= handleSize &&
+      Math.abs(pos.y - y) <= handleSize
+    )
+      return "ne";
+    if (
+      Math.abs(pos.x - x) <= handleSize &&
+      Math.abs(pos.y - (y + height)) <= handleSize
+    )
+      return "sw";
+    if (
+      Math.abs(pos.x - (x + width)) <= handleSize &&
+      Math.abs(pos.y - (y + height)) <= handleSize
+    )
+      return "se";
 
     // Check edges
-    if (Math.abs(pos.y - y) <= handleSize && pos.x > x && pos.x < x + width) return "n";
-    if (Math.abs(pos.y - (y + height)) <= handleSize && pos.x > x && pos.x < x + width) return "s";
-    if (Math.abs(pos.x - x) <= handleSize && pos.y > y && pos.y < y + height) return "w";
-    if (Math.abs(pos.x - (x + width)) <= handleSize && pos.y > y && pos.y < y + height) return "e";
+    if (Math.abs(pos.y - y) <= handleSize && pos.x > x && pos.x < x + width)
+      return "n";
+    if (
+      Math.abs(pos.y - (y + height)) <= handleSize &&
+      pos.x > x &&
+      pos.x < x + width
+    )
+      return "s";
+    if (Math.abs(pos.x - x) <= handleSize && pos.y > y && pos.y < y + height)
+      return "w";
+    if (
+      Math.abs(pos.x - (x + width)) <= handleSize &&
+      pos.y > y &&
+      pos.y < y + height
+    )
+      return "e";
 
     return "";
   }
 
   private getLineResizeHandle(pos: { x: number; y: number }): string {
     const selectedShape = this.selection.selectedShapes[0];
-    if (this.selection.selectedShapes.length !== 1 || !selectedShape || selectedShape.shape?.type !== 'line') return "";
+    if (
+      this.selection.selectedShapes.length !== 1 ||
+      !selectedShape ||
+      selectedShape.shape?.type !== "line"
+    )
+      return "";
 
     const line = selectedShape.shape as any;
     const handleSize = 10 / this.current.scale;
 
-    if (Math.hypot(pos.x - line.x, pos.y - line.y) <= handleSize / 2) return "start";
-    if (Math.hypot(pos.x - line.x2, pos.y - line.y2) <= handleSize / 2) return "end";
+    if (Math.hypot(pos.x - line.x, pos.y - line.y) <= handleSize / 2)
+      return "start";
+    if (Math.hypot(pos.x - line.x2, pos.y - line.y2) <= handleSize / 2)
+      return "end";
 
     return "";
   }
 
   private shapeBoundingBox() {
-    if (this.selection.selectedShapes.length === 0 || this.selection.isMultiSelect) {
-        return;
+    if (
+      this.selection.selectedShapes.length === 0 ||
+      this.selection.isMultiSelect
+    ) {
+      return;
     }
 
     const overallBBox = this.getOverallBoundingBox();
     if (!overallBBox) {
-        return;
+      return;
     }
 
     const margin = 10 / this.current.scale;
@@ -2001,50 +2104,54 @@ export class Game {
     this.ctx.setLineDash([]);
 
     const selectedShape = this.selection.selectedShapes[0];
-    if (this.selection.selectedShapes.length === 1 && selectedShape && selectedShape.shape?.type === 'line') {
-        const line = selectedShape.shape as any;
-        const handleSize = 10 / this.current.scale;
+    if (
+      this.selection.selectedShapes.length === 1 &&
+      selectedShape &&
+      selectedShape.shape?.type === "line"
+    ) {
+      const line = selectedShape.shape as any;
+      const handleSize = 10 / this.current.scale;
 
-        this.ctx.fillStyle = "white";
-        this.ctx.strokeStyle = "rgba(0, 150, 255, 0.8)";
-        this.ctx.lineWidth = 1 / this.current.scale;
+      this.ctx.fillStyle = "white";
+      this.ctx.strokeStyle = "rgba(0, 150, 255, 0.8)";
+      this.ctx.lineWidth = 1 / this.current.scale;
 
-        // Start point handle
-        this.ctx.beginPath();
-        this.ctx.arc(line.x, line.y, handleSize / 2, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.stroke();
+      // Start point handle
+      this.ctx.beginPath();
+      this.ctx.arc(line.x, line.y, handleSize / 2, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.stroke();
 
-        // End point handle
-        this.ctx.beginPath();
-        this.ctx.arc(line.x2, line.y2, handleSize / 2, 0, Math.PI * 2);
-        this.ctx.fill();
-        this.ctx.stroke();
+      // End point handle
+      this.ctx.beginPath();
+      this.ctx.arc(line.x2, line.y2, handleSize / 2, 0, Math.PI * 2);
+      this.ctx.fill();
+      this.ctx.stroke();
     } else {
-        // Draw resize handles for bounding box
-        const handleSize = 8 / this.current.scale;
-        const handles = {
-            nw: { x: x, y: y },
-            n: { x: x + width / 2, y: y },
-            ne: { x: x + width, y: y },
-            w: { x: x, y: y + height / 2 },
-            e: { x: x + width, y: y + height / 2 },
-            sw: { x: x, y: y + height },
-            s: { x: x + width / 2, y: y + height },
-            se: { x: x + width, y: y + height },
-        };
+      // Draw resize handles for bounding box
+      const handleSize = 8 / this.current.scale;
+      const handles = {
+        nw: { x: x, y: y },
+        n: { x: x + width / 2, y: y },
+        ne: { x: x + width, y: y },
+        w: { x: x, y: y + height / 2 },
+        e: { x: x + width, y: y + height / 2 },
+        sw: { x: x, y: y + height },
+        s: { x: x + width / 2, y: y + height },
+        se: { x: x + width, y: y + height },
+      };
 
-        this.ctx.fillStyle = "white";
-        this.ctx.strokeStyle = "rgba(0, 150, 255, 0.8)";
-        this.ctx.lineWidth = 1 / this.current.scale;
+      this.ctx.fillStyle = "white";
+      this.ctx.strokeStyle = "rgba(0, 150, 255, 0.8)";
+      this.ctx.lineWidth = 1 / this.current.scale;
 
-        for (const key in handles) {
-            const pos = handles[key as keyof typeof handles];
-            this.ctx.beginPath();
-            this.ctx.arc(pos.x, pos.y, handleSize / 2, 0, Math.PI * 2);
-            this.ctx.fill();
-            this.ctx.stroke();
-        }
+      for (const key in handles) {
+        const pos = handles[key as keyof typeof handles];
+        this.ctx.beginPath();
+        this.ctx.arc(pos.x, pos.y, handleSize / 2, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.stroke();
+      }
     }
   }
   cleanup() {

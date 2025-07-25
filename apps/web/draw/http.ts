@@ -33,6 +33,7 @@ interface TextProps {
   x: number;
   y: number;
   text: string;
+  fontSize: number;
 }
 export type Shapes =
   | RectProps
