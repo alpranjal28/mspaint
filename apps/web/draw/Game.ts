@@ -87,7 +87,7 @@ export class Game {
     this.tempShapes = this.processShapes(shapes);
     this.render();
   }
-
+  // filter/processing for init
   private processShapes(shapes: Payload[] = []): Payload[] {
     if (!shapes.length) return [];
     const sorted = shapes.sort(
@@ -102,6 +102,7 @@ export class Game {
     return Array.from(active.values());
   }
 
+  // extablishes connectiona at boot
   private initSocket() {
     this.socket.onmessage = (e) => {
       const data = JSON.parse(e.data);
@@ -116,6 +117,7 @@ export class Game {
     };
   }
 
+  // realtime handler
   private handleSocketMessage(message: any) {
     switch (message.function) {
       case "erase":
@@ -149,6 +151,7 @@ export class Game {
     this.render();
   }
 
+  // initalises all Listeners at boot
   private initEvents() {
     this.canvas.addEventListener("mousedown", this.onMouseDown);
     this.canvas.addEventListener("mousemove", this.onMouseMove);
@@ -303,7 +306,7 @@ export class Game {
     }
   }
 
-  // broadcast
+  // broadcast realtime
   private sendShapeMessage(payload: any, id?: string) {
     let message;
     if (typeof payload === "string" && id) {
@@ -391,6 +394,7 @@ export class Game {
     }
   }
 
+  // cursor style
   private getCursorForHandle(handle: string): string {
     switch (handle) {
       case "nw":
@@ -1600,6 +1604,8 @@ export class Game {
     return shapesAtPosition[this.lastSelectedShapeIndex];
   }
 
+  // find shape at mouse position/selection,
+  // to be used by findShapeAtPosition
   private isPointInShape(
     point: { x: number; y: number },
     payload: Payload
@@ -1693,6 +1699,7 @@ export class Game {
     return false;
   }
 
+  // cleans up all Event listeners at disconnection/return statement
   cleanup() {
     cancelAnimationFrame(this.frame);
     this.canvas.removeEventListener("mousedown", this.onMouseDown);
